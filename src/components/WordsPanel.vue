@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
-import { BookOpen, Clock3, Loader2, Plus, Trash2, X } from 'lucide-vue-next';
+import { BookOpen, Clock3, Loader2, MessageSquarePlus, Languages, Plus, Trash2, X } from 'lucide-vue-next';
 import { createWord, deleteWord, fetchWords, type WordEntry } from '../lib/words-api';
+import { getLanguageLabel, type NativeLanguage } from '../lib/profile-settings';
+import type { PracticeDirection } from '../hooks/useGeminiLive';
 
 const props = defineProps<{
   open: boolean;
+  nativeLanguage: NativeLanguage;
 }>();
 
 const emit = defineEmits<{
   (event: 'close'): void;
+  (event: 'practice', payload: { word: WordEntry; direction: PracticeDirection }): void;
 }>();
 
 const words = ref<WordEntry[]>([]);
@@ -71,6 +75,10 @@ async function handleDeleteWord(id: number) {
   } catch (error) {
     loadingError.value = error instanceof Error ? error.message : 'Failed to delete word.';
   }
+}
+
+function startPractice(word: WordEntry, direction: PracticeDirection) {
+  emit('practice', { word, direction });
 }
 
 watch(
@@ -218,6 +226,26 @@ watch(
                   <p v-if="word.context" class="mt-3 text-sm leading-relaxed text-white/65">
                     {{ word.context }}
                   </p>
+
+                  <div class="mt-4 grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      class="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-black/15 px-3 py-2 text-xs font-medium text-white/75 transition hover:border-amber-400/40 hover:bg-amber-500/10 hover:text-white"
+                      @click="startPractice(word, 'english-to-native')"
+                    >
+                      <MessageSquarePlus class="h-4 w-4" />
+                      <span>English → {{ getLanguageLabel(props.nativeLanguage) }}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-black/15 px-3 py-2 text-xs font-medium text-white/75 transition hover:border-amber-400/40 hover:bg-amber-500/10 hover:text-white"
+                      @click="startPractice(word, 'native-to-english')"
+                    >
+                      <Languages class="h-4 w-4" />
+                      <span>{{ getLanguageLabel(props.nativeLanguage) }} → English</span>
+                    </button>
+                  </div>
 
                   <p class="mt-4 text-[10px] uppercase tracking-[0.24em] text-white/25">
                     Added {{ new Date(word.createdAt).toLocaleString() }}

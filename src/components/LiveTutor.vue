@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue';
-import { useGeminiLive } from '../hooks/useGeminiLive';
+import { computed, ref, watch, nextTick } from 'vue';
+import { useGeminiLive, type PracticeDirection, type PracticeOptions } from '../hooks/useGeminiLive';
 import ApiKeyModal from './ApiKeyModal.vue';
 import ProfileModal from './ProfileModal.vue';
 import WordsPanel from './WordsPanel.vue';
@@ -16,6 +16,7 @@ import {
 } from 'lucide-vue-next';
 import { getEffectiveGeminiApiKey, getStoredGeminiApiKey } from '../lib/gemini-api-key';
 import { getLanguageNativeLabel, getStoredProfileSettings } from '../lib/profile-settings';
+import type { WordEntry } from '../lib/words-api';
 
 const { 
   isConnected, 
@@ -33,8 +34,34 @@ const isProfileModalOpen = ref(false);
 const browserApiKeyPresent = ref(Boolean(getStoredGeminiApiKey()));
 const effectiveApiKey = ref(getEffectiveGeminiApiKey());
 const nativeLanguage = ref(getStoredProfileSettings().nativeLanguage);
+const activePractice = ref<PracticeOptions | null>(null);
 
 const hasEffectiveApiKey = ref(Boolean(effectiveApiKey.value));
+const primaryActionLabel = computed(() => {
+  if (!hasEffectiveApiKey.value) {
+    return 'Set AI API Key';
+  }
+
+  if (isConnected.value) {
+    return activePractice.value ? 'Stop' : 'End Session';
+  }
+
+  return 'Start Practice';
+});
+
+const primaryActionHint = computed(() => {
+  if (!hasEffectiveApiKey.value) {
+    return 'Add your key to start using Mislearn.';
+  }
+
+  if (isConnected.value) {
+    return activePractice.value
+      ? `Testing "${activePractice.value.word}". Tap Stop to finish.`
+      : 'Tap to stop the live session.';
+  }
+
+  return 'Tap to start speaking';
+});
 
 const handlePrimaryAction = () => {
   if (!hasEffectiveApiKey.value) {
@@ -43,11 +70,15 @@ const handlePrimaryAction = () => {
   }
 
   if (isConnected.value) {
-    stopSession();
+    handleStop();
     return;
   }
 
-  startSession(effectiveApiKey.value, nativeLanguage.value);
+  startSession({
+    apiKey: effectiveApiKey.value,
+    nativeLanguage: nativeLanguage.value,
+    practice: activePractice.value
+  });
 };
 
 const handleApiKeySaved = () => {
@@ -63,6 +94,37 @@ const handleApiKeySaved = () => {
 const handleProfileSaved = () => {
   nativeLanguage.value = getStoredProfileSettings().nativeLanguage;
   isProfileModalOpen.value = false;
+};
+
+const handlePracticeStart = async (payload: { word: WordEntry; direction: PracticeDirection }) => {
+  isWordsPanelOpen.value = false;
+
+  if (isConnected.value) {
+    stopSession();
+  }
+
+  activePractice.value = {
+    word: payload.word.word,
+    translation: payload.word.translation,
+    context: payload.word.context,
+    direction: payload.direction,
+    nativeLanguage: nativeLanguage.value
+  };
+
+  const started = await startSession({
+    apiKey: effectiveApiKey.value,
+    nativeLanguage: nativeLanguage.value,
+    practice: activePractice.value
+  });
+
+  if (!started) {
+    activePractice.value = null;
+  }
+};
+
+const handleStop = () => {
+  stopSession();
+  activePractice.value = null;
 };
 
 watch(messages, () => {
@@ -141,7 +203,7 @@ watch(messages, () => {
           type="button"
           class="group relative"
           @click="handlePrimaryAction"
-          :aria-label="!hasEffectiveApiKey ? 'Set AI API Key' : isConnected ? 'End Session' : 'Start Practice'"
+          :aria-label="primaryActionLabel"
         >
           <div class="absolute inset-0 bg-orange-600/20 blur-3xl rounded-full" />
           <div
@@ -165,19 +227,23 @@ watch(messages, () => {
         </button>
         <div class="space-y-1">
           <p class="text-sm font-semibold uppercase tracking-[0.24em] text-white/35">
-            {{ !hasEffectiveApiKey ? 'Set AI API Key' : isConnected ? 'End Session' : 'Start Practice' }}
+            {{ primaryActionLabel }}
           </p>
           <p class="text-xs text-white/25">
-            {{
-              !hasEffectiveApiKey
-                ? 'Add your key to start using Mislearn.'
-                : isConnected
-                  ? 'Tap to stop the live session'
-                  : 'Tap to start speaking'
-            }}
+            {{ primaryActionHint }}
           </p>
         </div>
-        <div v-if="!hasEffectiveApiKey" class="max-w-md space-y-4">
+        <div v-if="activePractice" class="max-w-md space-y-4">
+          <div class="rounded-3xl border border-white/10 bg-white/5 px-5 py-4 text-left text-white/80">
+            <p class="text-sm font-semibold">Practice running</p>
+            <p class="mt-1 text-sm leading-relaxed text-white/65">
+              {{ activePractice.direction === 'english-to-native' ? 'English → ' + getLanguageNativeLabel(nativeLanguage) : getLanguageNativeLabel(nativeLanguage) + ' → English' }}
+              using <span class="text-amber-200">{{ activePractice.word }}</span>.
+            </p>
+          </div>
+        </div>
+
+        <div v-else-if="!hasEffectiveApiKey" class="max-w-md space-y-4">
           <div class="rounded-3xl border border-amber-500/20 bg-amber-500/10 px-5 py-4 text-left text-amber-100">
             <p class="text-sm font-semibold">API key required</p>
             <p class="mt-1 text-sm leading-relaxed text-amber-50/75">
@@ -280,7 +346,9 @@ watch(messages, () => {
 
     <WordsPanel
       :open="isWordsPanelOpen"
+      :native-language="nativeLanguage"
       @close="isWordsPanelOpen = false"
+      @practice="handlePracticeStart"
     />
 
     <ApiKeyModal
