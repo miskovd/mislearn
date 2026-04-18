@@ -1,11 +1,29 @@
 
-## Run Locally
+## Exécution locale
 
-**Prerequisites:**  Node.js
+**Prérequis :** Node.js et une clé `GEMINI_API_KEY` valide.
 
-#Copy .env.local.demo to .env.local file and fill all variables(Specially GEMINI_API_KEY).
-1. Install dependencies:
+1. Installer les dépendances :
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Définir `GEMINI_API_KEY` dans `.env.local`.
+3. Démarrer l’application complète :
    `npm run dev`
+
+Cela lance :
+* le frontend Vite sur `http://localhost:3000`
+* l’API SQLite sur `http://127.0.0.1:8787`
+
+La liste des mots est stockée dans `data/words.sqlite`.
+
+## Déploiement sur VPS
+
+1. Installer les dépendances sur le serveur :
+   `npm install`
+2. Définir les variables d’environnement :
+   `GEMINI_API_KEY`, et éventuellement `PORT` et `SQLITE_DB_PATH`
+3. Compiler le frontend :
+   `npm run build`
+4. Démarrer le backend :
+   `npm run start`
+
+`npm run start` sert le frontend compilé depuis `dist/` et expose l’API SQLite dans le même processus. Un seul service suffit donc derrière Nginx ou tout autre reverse proxy.
