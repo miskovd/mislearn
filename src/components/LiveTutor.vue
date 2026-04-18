@@ -4,7 +4,6 @@ import { useGeminiLive } from '../hooks/useGeminiLive';
 import WordsPanel from './WordsPanel.vue';
 import { 
   Mic, 
-  MicOff, 
   Volume2, 
   AlertCircle, 
   MessageSquare, 
@@ -23,6 +22,15 @@ const {
 
 const scrollRef = ref<HTMLDivElement | null>(null);
 const isWordsPanelOpen = ref(false);
+
+const handlePrimaryAction = () => {
+  if (isConnected.value) {
+    stopSession();
+    return;
+  }
+
+  startSession();
+};
 
 watch(messages, () => {
   nextTick(() => {
@@ -48,7 +56,7 @@ watch(messages, () => {
           <Sparkles class="w-6 h-6 text-white" />
         </div>
         <div>
-          <h1 class="text-xl font-semibold tracking-tight">LingoLive AI</h1>
+          <h1 class="text-xl font-semibold tracking-tight">Mislearn</h1>
           <p class="text-xs text-white/40 uppercase tracking-widest font-medium">English Tutor</p>
         </div>
       </div>
@@ -67,24 +75,6 @@ watch(messages, () => {
           <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span class="text-xs font-medium text-emerald-500">Live Session</span>
         </div>
-        <button 
-          @click="isConnected ? stopSession() : startSession()"
-          :class="[
-            'flex items-center gap-2 px-6 py-2.5 rounded-full font-medium transition-all duration-300',
-            isConnected 
-              ? 'bg-white/5 hover:bg-white/10 border border-white/10 text-white' 
-              : 'bg-orange-600 hover:bg-orange-500 text-white shadow-xl shadow-orange-600/20'
-          ]"
-        >
-          <template v-if="isConnected">
-            <MicOff class="w-4 h-4" />
-            <span>End Session</span>
-          </template>
-          <template v-else>
-            <Mic class="w-4 h-4" />
-            <span>Start Practice</span>
-          </template>
-        </button>
       </div>
     </header>
 
@@ -95,14 +85,38 @@ watch(messages, () => {
         <p class="text-sm font-medium">{{ error }}</p>
       </div>
 
-      <div v-if="!isConnected && !error" class="flex-1 flex flex-col items-center justify-center text-center space-y-8">
-        <div class="relative">
+      <div v-if="!error" class="flex-1 flex flex-col items-center justify-center text-center space-y-8">
+        <button
+          type="button"
+          class="group relative"
+          @click="handlePrimaryAction"
+          :aria-label="isConnected ? 'End Session' : 'Start Practice'"
+        >
           <div class="absolute inset-0 bg-orange-600/20 blur-3xl rounded-full" />
-          <div class="relative w-32 h-32 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-2xl">
+          <div
+            v-if="isConnected"
+            class="pointer-events-none absolute inset-[-16px] rounded-full border border-orange-300/35 ring-orbit"
+          />
+          <div
+            v-if="isConnected"
+            class="pointer-events-none absolute inset-[-8px] rounded-full border border-orange-400/30 ring-pulse"
+          />
+          <div
+            class="relative w-32 h-32 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-2xl transition-transform duration-300 group-hover:scale-105 group-active:scale-95"
+            :class="isConnected ? 'mic-active' : ''"
+          >
             <Mic class="w-12 h-12 text-white" />
           </div>
+        </button>
+        <div class="space-y-1">
+          <p class="text-sm font-semibold uppercase tracking-[0.24em] text-white/35">
+            {{ isConnected ? 'End Session' : 'Start Practice' }}
+          </p>
+          <p class="text-xs text-white/25">
+            {{ isConnected ? 'Tap to stop the live session' : 'Tap to start speaking' }}
+          </p>
         </div>
-        <div class="max-w-md space-y-4">
+        <div v-if="!isConnected" class="max-w-md space-y-4">
           <h2 class="text-3xl font-bold tracking-tight">Ready to practice?</h2>
           <p class="text-white/60 leading-relaxed">
             Connect with your AI tutor for real-time English conversation. 
@@ -152,7 +166,7 @@ watch(messages, () => {
               </span>
             </div>
             <span class="mt-1.5 text-[10px] uppercase tracking-widest font-bold text-white/20">
-              {{ msg.role === 'user' ? 'You' : 'LingoLive' }}
+              {{ msg.role === 'user' ? 'You' : 'Mislearn' }}
             </span>
           </div>
         </div>
@@ -194,13 +208,25 @@ watch(messages, () => {
     <!-- Footer -->
     <footer class="relative z-10 px-8 py-4 text-center">
       <p class="text-[10px] text-white/20 uppercase tracking-[0.2em] font-medium">
-        Powered by Gemini 2.5 Flash • AI English Tutor
+        Powered by Gemini 2.5 Flash • Mislearn
       </p>
     </footer>
   </div>
 </template>
 
 <style scoped>
+.ring-orbit {
+  animation: orbit 2.2s linear infinite;
+}
+
+.ring-pulse {
+  animation: pulseRing 1.4s ease-in-out infinite;
+}
+
+.mic-active {
+  animation: micGlow 1.8s ease-in-out infinite;
+}
+
 .scrollbar-thin::-webkit-scrollbar {
   width: 4px;
 }
@@ -210,5 +236,42 @@ watch(messages, () => {
 .scrollbar-thin::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
+}
+
+@keyframes orbit {
+  0% {
+    transform: rotate(0deg);
+    border-color: rgba(253, 186, 116, 0.22);
+    box-shadow: 0 0 0 0 rgba(251, 146, 60, 0.08);
+  }
+  50% {
+    border-color: rgba(251, 191, 36, 0.6);
+    box-shadow: 0 0 0 14px rgba(251, 146, 60, 0);
+  }
+  100% {
+    transform: rotate(360deg);
+    border-color: rgba(253, 186, 116, 0.22);
+    box-shadow: 0 0 0 0 rgba(251, 146, 60, 0);
+  }
+}
+
+@keyframes pulseRing {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.7;
+  }
+}
+
+@keyframes micGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 rgba(249, 115, 22, 0.25), 0 0 0 0 rgba(251, 146, 60, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(249, 115, 22, 0.4), 0 0 0 18px rgba(251, 146, 60, 0.05);
+  }
 }
 </style>

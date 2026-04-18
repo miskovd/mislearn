@@ -1,5 +1,5 @@
 {
-  "name": "LingoLive AI",
+  "name": "Mislearn",
   "description": "An AI-powered English tutor that listens to your speech, provides real-time corrections, and helps you practice conversation.",
   "requestFramePermissions": ["microphone"]
 }

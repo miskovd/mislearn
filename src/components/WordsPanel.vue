@@ -102,7 +102,7 @@ watch(
                 </div>
                 <div>
                   <h2 class="text-lg font-semibold tracking-tight">My words</h2>
-                  <p class="text-xs uppercase tracking-[0.24em] text-white/35">SQLite vocabulary notebook</p>
+                  <p class="text-xs uppercase tracking-[0.24em] text-white/35">Mislearn vocabulary notebook</p>
                 </div>
               </div>
 
