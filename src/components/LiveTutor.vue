@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue';
 import { useGeminiLive } from '../hooks/useGeminiLive';
+import WordsPanel from './WordsPanel.vue';
 import { 
   Mic, 
   MicOff, 
   Volume2, 
   AlertCircle, 
   MessageSquare, 
-  Sparkles 
+  Sparkles,
+  BookOpen
 } from 'lucide-vue-next';
 
 const { 
@@ -20,6 +22,7 @@ const {
 } = useGeminiLive();
 
 const scrollRef = ref<HTMLDivElement | null>(null);
+const isWordsPanelOpen = ref(false);
 
 watch(messages, () => {
   nextTick(() => {
@@ -51,6 +54,15 @@ watch(messages, () => {
       </div>
 
       <div class="flex items-center gap-4">
+        <button
+          type="button"
+          class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+          @click="isWordsPanelOpen = true"
+        >
+          <BookOpen class="h-4 w-4" />
+          <span>My words</span>
+        </button>
+
         <div v-if="isConnected" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
           <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span class="text-xs font-medium text-emerald-500">Live Session</span>
@@ -173,6 +185,11 @@ watch(messages, () => {
         </div>
       </div>
     </main>
+
+    <WordsPanel
+      :open="isWordsPanelOpen"
+      @close="isWordsPanelOpen = false"
+    />
 
     <!-- Footer -->
     <footer class="relative z-10 px-8 py-4 text-center">
