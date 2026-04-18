@@ -40,10 +40,16 @@ export function useGeminiLive() {
     isRecording.value = false;
   };
 
-  const startSession = async () => {
+  const startSession = async (apiKey: string) => {
     try {
       error.value = null;
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const normalizedApiKey = apiKey.trim();
+      if (!normalizedApiKey) {
+        error.value = "API key is missing. Open the API key window and save your key.";
+        return;
+      }
+
+      const ai = new GoogleGenAI({ apiKey: normalizedApiKey });
       
       audioQueueRef.value = new AudioQueue(24000);
 

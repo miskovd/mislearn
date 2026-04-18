@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue';
 import { useGeminiLive } from '../hooks/useGeminiLive';
+import ApiKeyModal from './ApiKeyModal.vue';
 import WordsPanel from './WordsPanel.vue';
 import { 
   Mic, 
@@ -8,8 +9,10 @@ import {
   AlertCircle, 
   MessageSquare, 
   Sparkles,
-  BookOpen
+  BookOpen,
+  KeyRound
 } from 'lucide-vue-next';
+import { getEffectiveGeminiApiKey, getStoredGeminiApiKey } from '../lib/gemini-api-key';
 
 const { 
   isConnected, 
@@ -22,14 +25,34 @@ const {
 
 const scrollRef = ref<HTMLDivElement | null>(null);
 const isWordsPanelOpen = ref(false);
+const isApiKeyModalOpen = ref(false);
+const browserApiKeyPresent = ref(Boolean(getStoredGeminiApiKey()));
+const effectiveApiKey = ref(getEffectiveGeminiApiKey());
+
+const hasEffectiveApiKey = ref(Boolean(effectiveApiKey.value));
 
 const handlePrimaryAction = () => {
+  if (!hasEffectiveApiKey.value) {
+    isApiKeyModalOpen.value = true;
+    return;
+  }
+
   if (isConnected.value) {
     stopSession();
     return;
   }
 
-  startSession();
+  startSession(effectiveApiKey.value);
+};
+
+const handleApiKeySaved = () => {
+  browserApiKeyPresent.value = Boolean(getStoredGeminiApiKey());
+  effectiveApiKey.value = getEffectiveGeminiApiKey();
+  hasEffectiveApiKey.value = Boolean(effectiveApiKey.value);
+  isApiKeyModalOpen.value = false;
+  if (!isConnected.value) {
+    error.value = null;
+  }
 };
 
 watch(messages, () => {
@@ -65,6 +88,15 @@ watch(messages, () => {
         <button
           type="button"
           class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+          @click="isApiKeyModalOpen = true"
+        >
+          <KeyRound class="h-4 w-4" />
+          <span>API Key</span>
+        </button>
+
+        <button
+          type="button"
+          class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
           @click="isWordsPanelOpen = true"
         >
           <BookOpen class="h-4 w-4" />
@@ -90,7 +122,7 @@ watch(messages, () => {
           type="button"
           class="group relative"
           @click="handlePrimaryAction"
-          :aria-label="isConnected ? 'End Session' : 'Start Practice'"
+          :aria-label="!hasEffectiveApiKey ? 'Set AI API Key' : isConnected ? 'End Session' : 'Start Practice'"
         >
           <div class="absolute inset-0 bg-orange-600/20 blur-3xl rounded-full" />
           <div
@@ -103,20 +135,47 @@ watch(messages, () => {
           />
           <div
             class="relative w-32 h-32 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-2xl transition-transform duration-300 group-hover:scale-105 group-active:scale-95"
-            :class="isConnected ? 'mic-active' : ''"
+            :class="[
+              isConnected ? 'mic-active' : '',
+              !hasEffectiveApiKey ? 'from-orange-500 to-red-500' : ''
+            ]"
           >
-            <Mic class="w-12 h-12 text-white" />
+            <KeyRound v-if="!hasEffectiveApiKey" class="w-12 h-12 text-white" />
+            <Mic v-else class="w-12 h-12 text-white" />
           </div>
         </button>
         <div class="space-y-1">
           <p class="text-sm font-semibold uppercase tracking-[0.24em] text-white/35">
-            {{ isConnected ? 'End Session' : 'Start Practice' }}
+            {{ !hasEffectiveApiKey ? 'Set AI API Key' : isConnected ? 'End Session' : 'Start Practice' }}
           </p>
           <p class="text-xs text-white/25">
-            {{ isConnected ? 'Tap to stop the live session' : 'Tap to start speaking' }}
+            {{
+              !hasEffectiveApiKey
+                ? 'Add your key to start using Mislearn.'
+                : isConnected
+                  ? 'Tap to stop the live session'
+                  : 'Tap to start speaking'
+            }}
           </p>
         </div>
-        <div v-if="!isConnected" class="max-w-md space-y-4">
+        <div v-if="!hasEffectiveApiKey" class="max-w-md space-y-4">
+          <div class="rounded-3xl border border-amber-500/20 bg-amber-500/10 px-5 py-4 text-left text-amber-100">
+            <p class="text-sm font-semibold">API key required</p>
+            <p class="mt-1 text-sm leading-relaxed text-amber-50/75">
+              No browser key is saved and `GEMINI_API_KEY` is empty. Open the API Key window and save your personal key to continue.
+            </p>
+            <button
+              type="button"
+              class="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-[#120b08] transition hover:bg-amber-50"
+              @click="isApiKeyModalOpen = true"
+            >
+              <KeyRound class="h-4 w-4" />
+              <span>Open API Key Window</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-else-if="!isConnected" class="max-w-md space-y-4">
           <h2 class="text-3xl font-bold tracking-tight">Ready to practice?</h2>
           <p class="text-white/60 leading-relaxed">
             Connect with your AI tutor for real-time English conversation. 
@@ -203,6 +262,13 @@ watch(messages, () => {
     <WordsPanel
       :open="isWordsPanelOpen"
       @close="isWordsPanelOpen = false"
+    />
+
+    <ApiKeyModal
+      :open="isApiKeyModalOpen"
+      :current-key-present="browserApiKeyPresent"
+      @close="isApiKeyModalOpen = false"
+      @saved="handleApiKeySaved"
     />
 
     <!-- Footer -->

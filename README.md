@@ -15,6 +15,8 @@ Cela lance :
 
 La liste des mots est stockée dans `data/words.sqlite`.
 
+Une clé Gemini peut aussi être enregistrée localement dans le navigateur via le bouton `API Key`. Si aucune clé n'est stockée dans le navigateur, l'application utilise `GEMINI_API_KEY` quand elle est définie pendant le développement ou le déploiement.
+
 ## Déploiement sur VPS
 
 1. Installer les dépendances sur le serveur :
