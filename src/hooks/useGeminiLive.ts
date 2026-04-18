@@ -8,6 +8,20 @@ export interface Message {
   isInterrupted?: boolean;
 }
 
+type NativeLanguage = 'fr' | 'uk' | 'ru';
+
+function getLanguageInstruction(language: NativeLanguage) {
+  switch (language) {
+    case 'uk':
+      return 'Use Ukrainian for explanations, corrections, and translations when the English content is unclear.';
+    case 'ru':
+      return 'Use Russian for explanations, corrections, and translations when the English content is unclear.';
+    case 'fr':
+    default:
+      return 'Use French for explanations, corrections, and translations when the English content is unclear.';
+  }
+}
+
 export function useGeminiLive() {
   const isConnected = ref(false);
   const isRecording = ref(false);
@@ -40,7 +54,7 @@ export function useGeminiLive() {
     isRecording.value = false;
   };
 
-  const startSession = async (apiKey: string) => {
+  const startSession = async (apiKey: string, nativeLanguage: NativeLanguage = 'fr') => {
     try {
       error.value = null;
       const normalizedApiKey = apiKey.trim();
@@ -65,7 +79,8 @@ export function useGeminiLive() {
           1. Listen to the user's speech.
           2. If you notice any grammatical errors, pronunciation issues, or awkward phrasing, gently correct them.
           3. Provide the correction first, then continue the conversation naturally.
-          4. Keep your responses concise and encouraging.`,
+          4. Keep your responses concise and encouraging.
+          5. ${getLanguageInstruction(nativeLanguage)}`,
           inputAudioTranscription: {},
           outputAudioTranscription: {},
         },

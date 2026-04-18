@@ -2,6 +2,7 @@
 import { ref, watch, nextTick } from 'vue';
 import { useGeminiLive } from '../hooks/useGeminiLive';
 import ApiKeyModal from './ApiKeyModal.vue';
+import ProfileModal from './ProfileModal.vue';
 import WordsPanel from './WordsPanel.vue';
 import { 
   Mic, 
@@ -10,9 +11,11 @@ import {
   MessageSquare, 
   Sparkles,
   BookOpen,
-  KeyRound
+  KeyRound,
+  Settings2
 } from 'lucide-vue-next';
 import { getEffectiveGeminiApiKey, getStoredGeminiApiKey } from '../lib/gemini-api-key';
+import { getLanguageNativeLabel, getStoredProfileSettings } from '../lib/profile-settings';
 
 const { 
   isConnected, 
@@ -26,8 +29,10 @@ const {
 const scrollRef = ref<HTMLDivElement | null>(null);
 const isWordsPanelOpen = ref(false);
 const isApiKeyModalOpen = ref(false);
+const isProfileModalOpen = ref(false);
 const browserApiKeyPresent = ref(Boolean(getStoredGeminiApiKey()));
 const effectiveApiKey = ref(getEffectiveGeminiApiKey());
+const nativeLanguage = ref(getStoredProfileSettings().nativeLanguage);
 
 const hasEffectiveApiKey = ref(Boolean(effectiveApiKey.value));
 
@@ -42,7 +47,7 @@ const handlePrimaryAction = () => {
     return;
   }
 
-  startSession(effectiveApiKey.value);
+  startSession(effectiveApiKey.value, nativeLanguage.value);
 };
 
 const handleApiKeySaved = () => {
@@ -53,6 +58,11 @@ const handleApiKeySaved = () => {
   if (!isConnected.value) {
     error.value = null;
   }
+};
+
+const handleProfileSaved = () => {
+  nativeLanguage.value = getStoredProfileSettings().nativeLanguage;
+  isProfileModalOpen.value = false;
 };
 
 watch(messages, () => {
@@ -85,6 +95,15 @@ watch(messages, () => {
       </div>
 
       <div class="flex items-center gap-4">
+        <button
+          type="button"
+          class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+          @click="isProfileModalOpen = true"
+        >
+          <Settings2 class="h-4 w-4" />
+          <span>{{ getLanguageNativeLabel(nativeLanguage) }}</span>
+        </button>
+
         <button
           type="button"
           class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
@@ -269,6 +288,12 @@ watch(messages, () => {
       :current-key-present="browserApiKeyPresent"
       @close="isApiKeyModalOpen = false"
       @saved="handleApiKeySaved"
+    />
+
+    <ProfileModal
+      :open="isProfileModalOpen"
+      @close="isProfileModalOpen = false"
+      @saved="handleProfileSaved"
     />
 
     <!-- Footer -->
