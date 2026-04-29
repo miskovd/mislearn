@@ -1,0 +1,31 @@
+services:
+  mislearn:
+    build: .
+    container_name: mislearn
+    restart: unless-stopped
+
+    environment:
+      - PORT=8787
+      - SQLITE_DB_PATH=/app/data/words.sqlite
+
+    volumes:
+      - ./data:/app/data
+
+    labels:
+      - "traefik.enable=true"
+
+      # ⚠️ ЗАМЕНИ НА СВОЙ ДОМЕН
+      - "traefik.http.routers.mislearn.rule=Host(`mislearn.miskov.duckdns.org`)"
+
+      - "traefik.http.routers.mislearn.entrypoints=websecure"
+      - "traefik.http.routers.mislearn.tls.certresolver=letsencrypt"
+
+      # ⚠️ ВАЖНО: ТВОЙ ПОРТ = 8787
+      - "traefik.http.services.mislearn.loadbalancer.server.port=8787"
+
+    networks:
+      - traefik_proxy
+
+networks:
+  traefik_proxy:
+    external: true
