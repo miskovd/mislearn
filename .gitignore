@@ -4,6 +4,7 @@ dist/
 coverage/
 data/
 .DS_Store
+.codex
 *.log
 .env.local
 !.env.example
