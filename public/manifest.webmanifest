@@ -1,0 +1,18 @@
+{
+  "name": "Mislearn",
+  "short_name": "Mislearn",
+  "description": "A live English tutor with vocabulary practice and local notes.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0502",
+  "theme_color": "#0a0502",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

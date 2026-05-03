@@ -35,6 +35,10 @@ Mislearn is a live English tutor built with Vue, Vite, Express, SQLite, and Gemi
 - Frontend: `http://localhost:3000`
 - API server: `http://127.0.0.1:8787`
 
+## PWA
+
+Mislearn now includes a web app manifest and service worker. After you open the production build on `localhost` or over HTTPS, the browser can install it as a PWA from the install button or browser menu.
+
 ## How It Works
 
 - The app uses your browser microphone for live practice.
