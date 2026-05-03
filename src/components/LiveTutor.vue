@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch, nextTick } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useGeminiLive, type PracticeDirection, type PracticeOptions } from '../hooks/useGeminiLive';
 import ApiKeyModal from './ApiKeyModal.vue';
 import ProfileModal from './ProfileModal.vue';
@@ -12,7 +12,8 @@ import {
   Sparkles,
   BookOpen,
   KeyRound,
-  Settings2
+  Settings2,
+  Menu
 } from 'lucide-vue-next';
 import { getEffectiveGeminiApiKey, getStoredGeminiApiKey } from '../lib/gemini-api-key';
 import { getLanguageNativeLabel, getStoredProfileSettings } from '../lib/profile-settings';
@@ -31,6 +32,7 @@ const scrollRef = ref<HTMLDivElement | null>(null);
 const isWordsPanelOpen = ref(false);
 const isApiKeyModalOpen = ref(false);
 const isProfileModalOpen = ref(false);
+const isMobileMenuOpen = ref(false);
 const browserApiKeyPresent = ref(Boolean(getStoredGeminiApiKey()));
 const effectiveApiKey = ref(getEffectiveGeminiApiKey());
 const nativeLanguage = ref(getStoredProfileSettings().nativeLanguage);
@@ -96,6 +98,25 @@ const handleProfileSaved = () => {
   isProfileModalOpen.value = false;
 };
 
+const closeMobileMenu = () => {
+  isMobileMenuOpen.value = false;
+};
+
+const openProfileModal = () => {
+  isMobileMenuOpen.value = false;
+  isProfileModalOpen.value = true;
+};
+
+const openApiKeyModal = () => {
+  isMobileMenuOpen.value = false;
+  isApiKeyModalOpen.value = true;
+};
+
+const openWordsPanel = () => {
+  isMobileMenuOpen.value = false;
+  isWordsPanelOpen.value = true;
+};
+
 const handlePracticeStart = async (payload: { word: WordEntry; direction: PracticeDirection }) => {
   isWordsPanelOpen.value = false;
 
@@ -145,48 +166,101 @@ watch(messages, () => {
     </div>
 
     <!-- Header -->
-    <header class="relative z-10 flex items-center justify-between px-8 py-6 border-b border-white/5 backdrop-blur-md">
+    <header class="relative z-[70] flex items-center justify-between border-b border-white/5 px-4 py-4 backdrop-blur-md sm:px-8 sm:py-6">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-orange-600 flex items-center justify-center shadow-lg shadow-orange-600/20">
-          <Sparkles class="w-6 h-6 text-white" />
+        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-600 shadow-lg shadow-orange-600/20 sm:h-10 sm:w-10">
+          <Sparkles class="h-5 w-5 text-white sm:h-6 sm:w-6" />
         </div>
         <div>
-          <h1 class="text-xl font-semibold tracking-tight">Mislearn</h1>
-          <p class="text-xs text-white/40 uppercase tracking-widest font-medium">English Tutor</p>
+          <h1 class="text-lg font-semibold tracking-tight sm:text-xl">Mislearn</h1>
+          <p class="text-[10px] font-medium uppercase tracking-widest text-white/40 sm:text-xs">English Tutor</p>
         </div>
       </div>
 
-      <div class="flex items-center gap-4">
-        <button
-          type="button"
-          class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
-          @click="isProfileModalOpen = true"
-        >
-          <Settings2 class="h-4 w-4" />
-          <span>{{ getLanguageNativeLabel(nativeLanguage) }}</span>
-        </button>
+      <div class="relative flex items-center gap-3 sm:gap-4">
+        <div v-if="isConnected" class="flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5">
+        <div class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span class="header-live-label text-xs font-medium text-emerald-500">Live Session</span>
+        </div>
 
-        <button
-          type="button"
-          class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
-          @click="isApiKeyModalOpen = true"
-        >
-          <KeyRound class="h-4 w-4" />
-          <span>API Key</span>
-        </button>
+        <div class="header-mobile-menu relative z-[70]">
+          <button
+            type="button"
+            class="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/80 transition hover:bg-white/10 hover:text-white"
+            :aria-expanded="isMobileMenuOpen"
+            aria-label="Open menu"
+            @click="isMobileMenuOpen = !isMobileMenuOpen"
+          >
+            <Menu class="h-5 w-5" />
+          </button>
 
-        <button
-          type="button"
-          class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
-          @click="isWordsPanelOpen = true"
-        >
-          <BookOpen class="h-4 w-4" />
-          <span>My words</span>
-        </button>
+          <Transition name="menu-pop">
+            <div v-if="isMobileMenuOpen" class="absolute right-0 top-[calc(100%+0.75rem)] z-[80] w-[min(86vw,280px)] overflow-hidden rounded-[28px] border border-white/10 bg-[#120b08]/95 p-2 shadow-2xl shadow-black/50">
+              <button
+                type="button"
+                class="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-medium text-white/85 transition hover:bg-white/5 hover:text-white"
+                @click="openProfileModal"
+              >
+                <Settings2 class="h-4 w-4 text-orange-300" />
+                <span>{{ getLanguageNativeLabel(nativeLanguage) }}</span>
+              </button>
 
-        <div v-if="isConnected" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-          <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span class="text-xs font-medium text-emerald-500">Live Session</span>
+              <button
+                type="button"
+                class="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-medium text-white/85 transition hover:bg-white/5 hover:text-white"
+                @click="openApiKeyModal"
+              >
+                <KeyRound class="h-4 w-4 text-orange-300" />
+                <span>API Key</span>
+              </button>
+
+              <button
+                type="button"
+                class="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-medium text-white/85 transition hover:bg-white/5 hover:text-white"
+                @click="openWordsPanel"
+              >
+                <BookOpen class="h-4 w-4 text-orange-300" />
+                <span>My words</span>
+              </button>
+            </div>
+          </Transition>
+
+          <button
+            v-if="isMobileMenuOpen"
+            type="button"
+            class="header-mobile-overlay fixed inset-0 z-[60] cursor-default"
+            aria-label="Close menu"
+            @click="closeMobileMenu"
+          />
+        </div>
+
+        <div class="header-desktop-actions relative z-[70] flex items-center gap-4">
+          <button
+            type="button"
+            class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+            @click="openProfileModal"
+          >
+            <Settings2 class="h-4 w-4" />
+            <span>{{ getLanguageNativeLabel(nativeLanguage) }}</span>
+          </button>
+
+          <button
+            type="button"
+            class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+            @click="openApiKeyModal"
+          >
+            <KeyRound class="h-4 w-4" />
+            <span>API Key</span>
+          </button>
+
+          <button
+            type="button"
+            class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+            @click="openWordsPanel"
+          >
+            <BookOpen class="h-4 w-4" />
+            <span>My words</span>
+          </button>
         </div>
       </div>
     </header>
@@ -395,6 +469,39 @@ watch(messages, () => {
 .scrollbar-thin::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
+}
+
+.header-mobile-menu {
+  display: none;
+}
+
+.header-live-label {
+  display: inline;
+}
+
+.menu-pop-enter-active,
+.menu-pop-leave-active {
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.menu-pop-enter-from,
+.menu-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.98);
+}
+
+@media (orientation: portrait) and (max-width: 720px) {
+  .header-desktop-actions {
+    display: none;
+  }
+
+  .header-mobile-menu {
+    display: block;
+  }
+
+  .header-live-label {
+    display: none;
+  }
 }
 
 @keyframes orbit {

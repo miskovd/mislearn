@@ -43,6 +43,25 @@ Mislearn is a live English tutor built with Vue, Vite, Express, SQLite, and Gemi
 - Vocabulary entries are stored in `data/words.sqlite`.
 - The SQLite database runs in WAL mode and persists across restarts.
 
+## Local Docker
+
+For local testing, stop the previous container, rebuild the image, and start a fresh container:
+
+```bash
+docker stop mislearn 2>/dev/null || true
+docker build -t mislearn .
+docker run -d --name mislearn -p 8787:8787 \
+  -e GEMINI_API_KEY=your_api_key_here \
+  -v "$(pwd)/data:/app/data" \
+  mislearn
+```
+
+If you prefer a one-line helper, you can also define:
+
+```bash
+alias mislearn-up='docker stop mislearn 2>/dev/null || true; docker build -t mislearn .; docker run -d --name mislearn -p 8787:8787 -e GEMINI_API_KEY=your_api_key_here -v "$(pwd)/data:/app/data" mislearn'
+```
+
 ## Configuration
 
 | Setting | Where | Purpose |
