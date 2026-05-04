@@ -54,11 +54,11 @@ function handleClear() {
 <template>
   <Teleport to="body">
     <Transition name="modal-fade">
-      <div v-if="open" class="fixed inset-0 z-[60]">
-        <div class="absolute inset-0 bg-black/65 backdrop-blur-sm" @click="emit('close')" />
+      <div v-if="open" class="modal-viewport fixed inset-0 z-[100] overflow-y-auto">
+        <div class="fixed inset-0 bg-black/65 backdrop-blur-sm" @click="emit('close')" />
 
         <Transition name="modal-pop">
-          <section class="absolute left-1/2 top-1/2 w-[min(92vw,520px)] -translate-x-1/2 -translate-y-1/2 rounded-[32px] border border-white/10 bg-[#120b08]/95 p-6 text-white shadow-2xl shadow-black/50">
+          <section class="relative mx-auto max-h-[calc(100dvh-2rem)] w-full max-w-[520px] overflow-y-auto rounded-[32px] border border-white/10 bg-[#120b08]/95 p-5 text-white shadow-2xl shadow-black/50 sm:p-6">
             <header class="flex items-start justify-between gap-4">
               <div class="flex items-start gap-3">
                 <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-500/15 text-orange-300">
@@ -158,6 +158,11 @@ function handleClear() {
 .modal-pop-enter-from,
 .modal-pop-leave-to {
   opacity: 0;
-  transform: translate(-50%, -48%) scale(0.96);
+  transform: translateY(-0.5rem) scale(0.98);
+}
+
+.modal-viewport {
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
 }
 </style>
