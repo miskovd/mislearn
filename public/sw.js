@@ -77,7 +77,7 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((response) => {
           const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', responseClone));
+          caches.open(currentCacheName).then((cache) => cache.put('/index.html', responseClone));
           return response;
         })
         .catch(async () => {
@@ -100,7 +100,7 @@ self.addEventListener('fetch', (event) => {
         }
 
         const responseClone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+        caches.open(currentCacheName).then((cache) => cache.put(request, responseClone));
         return response;
       });
     })
