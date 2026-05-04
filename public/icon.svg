@@ -1,19 +1,10 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Mislearn">
-  <defs>
-    <linearGradient id="bg" x1="64" y1="56" x2="452" y2="460" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#F97316"/>
-      <stop offset="1" stop-color="#F59E0B"/>
-    </linearGradient>
-    <linearGradient id="ring" x1="108" y1="102" x2="400" y2="408" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFD6A0" stop-opacity="0.9"/>
-      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.15"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="#0A0502"/>
-  <circle cx="256" cy="256" r="184" fill="url(#bg)"/>
-  <circle cx="256" cy="256" r="152" stroke="url(#ring)" stroke-width="18" opacity="0.8"/>
-  <path d="M170 308V204C170 188.536 182.536 176 198 176H238C253.464 176 266 188.536 266 204V308C266 323.464 253.464 336 238 336H198C182.536 336 170 323.464 170 308Z" fill="white" fill-opacity="0.96"/>
-  <path d="M294 204C294 188.536 306.536 176 322 176H338C353.464 176 366 188.536 366 204V308C366 323.464 353.464 336 338 336H322C306.536 336 294 323.464 294 308V204Z" fill="white" fill-opacity="0.92"/>
-  <path d="M214 250H302" stroke="#0A0502" stroke-width="18" stroke-linecap="round"/>
-  <path d="M220 286H296" stroke="#0A0502" stroke-width="18" stroke-linecap="round" opacity="0.85"/>
+  <rect width="512" height="512" rx="154" fill="#EA580C"/>
+  <g transform="translate(102.4 102.4) scale(12.8)" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+    <path d="M5 3v4"/>
+    <path d="M19 17v4"/>
+    <path d="M3 5h4"/>
+    <path d="M17 19h4"/>
+  </g>
 </svg>
