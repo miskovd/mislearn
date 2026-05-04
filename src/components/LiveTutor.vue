@@ -102,6 +102,15 @@ const closeMobileMenu = () => {
   isMobileMenuOpen.value = false;
 };
 
+const handleGoHome = () => {
+  isWordsPanelOpen.value = false;
+  isApiKeyModalOpen.value = false;
+  isProfileModalOpen.value = false;
+  isMobileMenuOpen.value = false;
+  activePractice.value = null;
+  error.value = null;
+};
+
 const openProfileModal = () => {
   isMobileMenuOpen.value = false;
   isProfileModalOpen.value = true;
@@ -167,7 +176,12 @@ watch(messages, () => {
 
     <!-- Header -->
     <header class="relative z-[70] flex items-center justify-between border-b border-white/5 px-4 py-4 backdrop-blur-md sm:px-8 sm:py-6">
-      <div class="flex items-center gap-3">
+      <button
+        type="button"
+        class="flex items-center gap-3 rounded-2xl text-left transition hover:opacity-85 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/60"
+        aria-label="Open home screen"
+        @click="handleGoHome"
+      >
         <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-600 shadow-lg shadow-orange-600/20 sm:h-10 sm:w-10">
           <Sparkles class="h-5 w-5 text-white sm:h-6 sm:w-6" />
         </div>
@@ -175,7 +189,7 @@ watch(messages, () => {
           <h1 class="text-lg font-semibold tracking-tight sm:text-xl">Mislearn</h1>
           <p class="text-[10px] font-medium uppercase tracking-widest text-white/40 sm:text-xs">English Tutor</p>
         </div>
-      </div>
+      </button>
 
       <div class="relative flex items-center gap-3 sm:gap-4">
         <div v-if="isConnected" class="flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5">
