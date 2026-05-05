@@ -7,7 +7,7 @@ Mislearn is a live English tutor built with Vue, Vite, Express, SQLite, and Gemi
 - Live speaking practice with voice input and audio replies
 - Gentle corrections and short explanations during conversation
 - Vocabulary practice for saved words in both directions
-- A local SQLite notebook for words, translations, and context
+- A local-first vocabulary notebook with optional Google sign-in sync
 - Per-user language settings stored in the browser
 
 ## Requirements
@@ -24,6 +24,9 @@ Mislearn is a live English tutor built with Vue, Vite, Express, SQLite, and Gemi
 2. Add your key to `.env.local`:
    ```env
    GEMINI_API_KEY=your_api_key_here
+   GOOGLE_CLIENT_ID=your_google_oauth_client_id
+   GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
+   SESSION_SECRET=replace_with_a_long_random_string
    ```
 3. Start the app:
    ```bash
@@ -44,7 +47,8 @@ Mislearn now includes a web app manifest and service worker. After you open the 
 - The app uses your browser microphone for live practice.
 - If you save a Gemini key in the app, that browser-stored key takes priority.
 - If no browser key is saved, the app falls back to `GEMINI_API_KEY`.
-- Vocabulary entries are stored in `data/words.sqlite`.
+- Vocabulary entries are stored in the current browser until sign-in.
+- After Google sign-in, local words are moved into `data/words.sqlite` under that user account.
 - The SQLite database runs in WAL mode and persists across restarts.
 
 ## Local Docker
@@ -71,8 +75,24 @@ alias mislearn-up='docker stop mislearn 2>/dev/null || true; docker build -t mis
 | Setting | Where | Purpose |
 | --- | --- | --- |
 | `GEMINI_API_KEY` | `.env.local` or server environment | Used for Gemini Live access |
+| `GOOGLE_CLIENT_ID` | Server environment | OAuth client ID for Sign in with Google |
+| `GOOGLE_CLIENT_SECRET` | Server environment | OAuth client secret for Sign in with Google |
+| `SESSION_SECRET` | Server environment | Secret used to sign login cookies |
+| `APP_BASE_URL` | Server environment | Public app URL used for OAuth redirect URIs |
 | `PORT` | Server environment | Port for the Express app, default `8787` |
 | `SQLITE_DB_PATH` | Server environment | Custom path for the SQLite database |
+
+For Google OAuth, add this redirect URI in Google Cloud Console:
+
+```text
+http://localhost:3000/api/auth/google/callback
+```
+
+For production, add the same path on your real HTTPS domain, for example:
+
+```text
+https://your-domain.com/api/auth/google/callback
+```
 
 ## Supported Native Languages
 
@@ -117,6 +137,7 @@ You can change the native language from the profile button in the app. That lang
 
 ## Data Storage
 
-- Word data lives in `data/words.sqlite`
+- Anonymous word data lives in the browser on the current device
+- Signed-in word data lives in `data/words.sqlite`
 - SQLite WAL files may appear next to the database during use
 - Browser preferences are stored in `localStorage` on the current device

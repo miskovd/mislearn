@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useGeminiLive, type PracticeDirection, type PracticeOptions } from '../hooks/useGeminiLive';
 import ApiKeyModal from './ApiKeyModal.vue';
 import ProfileModal from './ProfileModal.vue';
@@ -17,6 +17,8 @@ import {
 } from 'lucide-vue-next';
 import { getEffectiveGeminiApiKey, getStoredGeminiApiKey } from '../lib/gemini-api-key';
 import { getLanguageNativeLabel, getStoredProfileSettings } from '../lib/profile-settings';
+import { fetchCurrentUser, signOut, type AuthUser } from '../lib/auth-api';
+import { getLocalWordsCount, syncLocalWordsToRemote } from '../lib/words-api';
 import type { WordEntry } from '../lib/words-api';
 
 const { 
@@ -37,6 +39,8 @@ const browserApiKeyPresent = ref(Boolean(getStoredGeminiApiKey()));
 const effectiveApiKey = ref(getEffectiveGeminiApiKey());
 const nativeLanguage = ref(getStoredProfileSettings().nativeLanguage);
 const activePractice = ref<PracticeOptions | null>(null);
+const currentUser = ref<AuthUser | null>(null);
+const wordSyncStatus = ref<'idle' | 'syncing' | 'synced' | 'error'>('idle');
 
 const hasEffectiveApiKey = ref(Boolean(effectiveApiKey.value));
 const primaryActionLabel = computed(() => {
@@ -90,6 +94,22 @@ const handleApiKeySaved = () => {
   isApiKeyModalOpen.value = false;
   if (!isConnected.value) {
     error.value = null;
+  }
+};
+
+const syncLocalWordsForUser = async () => {
+  if (!currentUser.value || getLocalWordsCount() === 0) {
+    return;
+  }
+
+  wordSyncStatus.value = 'syncing';
+
+  try {
+    await syncLocalWordsToRemote();
+    wordSyncStatus.value = 'synced';
+  } catch (error) {
+    console.error('Failed to sync local words:', error);
+    wordSyncStatus.value = 'error';
   }
 };
 
@@ -156,6 +176,25 @@ const handleStop = () => {
   stopSession();
   activePractice.value = null;
 };
+
+const handleSignOut = async () => {
+  try {
+    await signOut();
+    currentUser.value = null;
+    wordSyncStatus.value = 'idle';
+  } catch (error) {
+    console.error('Failed to sign out:', error);
+  }
+};
+
+onMounted(async () => {
+  try {
+    currentUser.value = await fetchCurrentUser();
+    await syncLocalWordsForUser();
+  } catch (error) {
+    console.error('Failed to load current user:', error);
+  }
+});
 
 watch(messages, () => {
   nextTick(() => {
@@ -435,8 +474,11 @@ watch(messages, () => {
     <WordsPanel
       :open="isWordsPanelOpen"
       :native-language="nativeLanguage"
+      :user="currentUser"
+      :sync-status="wordSyncStatus"
       @close="isWordsPanelOpen = false"
       @practice="handlePracticeStart"
+      @sign-out="handleSignOut"
     />
 
     <ApiKeyModal

@@ -22,7 +22,10 @@ function run(name, command, args, extraEnv = {}) {
 
 let shuttingDown = false;
 const children = [
-  run('api', isWin ? 'node.exe' : 'node', ['server/index.js'], { PORT: '8787' }),
+  run('api', isWin ? 'node.exe' : 'node', ['server/index.js'], {
+    PORT: '8787',
+    APP_BASE_URL: process.env.APP_BASE_URL || 'http://localhost:3000'
+  }),
   run('web', isWin ? 'npm.cmd' : 'npm', ['exec', 'vite', '--', '--host', '0.0.0.0', '--port', '3000'])
 ];
 

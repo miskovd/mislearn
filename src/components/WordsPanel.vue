@@ -1,18 +1,30 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
-import { BookOpen, Clock3, Loader2, MessageSquarePlus, Languages, Plus, Trash2, X } from 'lucide-vue-next';
-import { createWord, deleteWord, fetchWords, type WordEntry } from '../lib/words-api';
+import { BookOpen, Clock3, Cloud, Loader2, LogOut, MessageSquarePlus, Languages, Plus, ShieldCheck, Trash2, X } from 'lucide-vue-next';
+import {
+  createLocalWord,
+  createRemoteWord,
+  deleteLocalWord,
+  deleteRemoteWord,
+  fetchLocalWords,
+  fetchRemoteWords,
+  type WordEntry
+} from '../lib/words-api';
+import { startGoogleSignIn, type AuthUser } from '../lib/auth-api';
 import { getLanguageLabel, type NativeLanguage } from '../lib/profile-settings';
 import type { PracticeDirection } from '../hooks/useGeminiLive';
 
 const props = defineProps<{
   open: boolean;
   nativeLanguage: NativeLanguage;
+  user: AuthUser | null;
+  syncStatus: 'idle' | 'syncing' | 'synced' | 'error';
 }>();
 
 const emit = defineEmits<{
   (event: 'close'): void;
   (event: 'practice', payload: { word: WordEntry; direction: PracticeDirection }): void;
+  (event: 'sign-out'): void;
 }>();
 
 const words = ref<WordEntry[]>([]);
@@ -28,13 +40,14 @@ const form = ref({
 });
 
 const hasWords = computed(() => words.value.length > 0);
+const isSignedIn = computed(() => Boolean(props.user));
 
 async function loadWords() {
   loading.value = true;
   loadingError.value = null;
 
   try {
-    words.value = await fetchWords();
+    words.value = isSignedIn.value ? await fetchRemoteWords() : await fetchLocalWords();
   } catch (error) {
     loadingError.value = error instanceof Error ? error.message : 'Failed to load words.';
   } finally {
@@ -52,6 +65,8 @@ async function handleAddWord() {
   loadingError.value = null;
 
   try {
+    const createWord = isSignedIn.value ? createRemoteWord : createLocalWord;
+
     await createWord({
       word: form.value.word,
       translation: form.value.translation,
@@ -70,6 +85,8 @@ async function handleAddWord() {
 
 async function handleDeleteWord(id: number) {
   try {
+    const deleteWord = isSignedIn.value ? deleteRemoteWord : deleteLocalWord;
+
     await deleteWord(id);
     words.value = words.value.filter((word) => word.id !== id);
   } catch (error) {
@@ -82,8 +99,8 @@ function startPractice(word: WordEntry, direction: PracticeDirection) {
 }
 
 watch(
-  () => props.open,
-  async (isOpen) => {
+  () => [props.open, props.user?.id, props.syncStatus] as const,
+  async ([isOpen]) => {
     if (isOpen) {
       await nextTick();
       await loadWords();
@@ -124,6 +141,55 @@ watch(
             </header>
 
             <div class="border-b border-white/10 px-6 py-4">
+              <div
+                v-if="!isSignedIn"
+                class="mb-4 rounded-3xl border border-orange-300/30 bg-orange-500/15 p-4 shadow-lg shadow-orange-950/20"
+              >
+                <div class="flex items-start gap-3">
+                  <div class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-orange-500 text-white">
+                    <Cloud class="h-4 w-4" />
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-sm font-semibold text-white">Save your words across devices</p>
+                    <p class="mt-1 text-sm leading-relaxed text-orange-50/75">
+                      Right now this vocabulary is saved only on this device. Sign in with Google to move it to your account so it will not be lost and can be opened on other devices.
+                    </p>
+                    <button
+                      type="button"
+                      class="mt-3 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-[#120b08] transition hover:bg-orange-50"
+                      @click="startGoogleSignIn"
+                    >
+                      <ShieldCheck class="h-4 w-4" />
+                      <span>Sign in with Google</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                v-else
+                class="mb-4 flex items-center justify-between gap-3 rounded-3xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3"
+              >
+                <div class="min-w-0">
+                  <p class="truncate text-sm font-medium text-emerald-100">
+                    Synced as {{ props.user?.email }}
+                  </p>
+                  <p class="mt-0.5 text-xs text-emerald-50/55">
+                    {{ syncStatus === 'syncing' ? 'Moving local words to your account...' : 'Words are saved on the server.' }}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  class="shrink-0 rounded-full border border-white/10 p-2 text-white/60 transition hover:bg-white/5 hover:text-white"
+                  aria-label="Sign out"
+                  @click="emit('sign-out')"
+                >
+                  <Loader2 v-if="syncStatus === 'syncing'" class="h-4 w-4 animate-spin" />
+                  <LogOut v-else class="h-4 w-4" />
+                </button>
+              </div>
+
               <button
                 type="button"
                 class="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-400"
@@ -198,7 +264,7 @@ watch(
                 </div>
                 <p class="text-sm font-medium text-white/70">No saved words yet</p>
                 <p class="mt-2 max-w-sm text-sm leading-relaxed">
-                  Open the form above and save words from your dialog. They will stay in SQLite on this server.
+                  Open the form above and save words from your dialog. {{ isSignedIn ? 'They will stay in your account on this server.' : 'They will stay in this browser until you sign in.' }}
                 </p>
               </div>
 
