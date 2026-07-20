@@ -21,7 +21,7 @@ Mislearn is a live English tutor built with Vue, Vite, Express, SQLite, and Gemi
    ```bash
    npm install
    ```
-2. Add your key to `.env.local`:
+2. Copy `.env.local.demo` to `.env.local`, then set the values you need:
    ```env
    GEMINI_API_KEY=your_api_key_here
    GOOGLE_CLIENT_ID=your_google_oauth_client_id
@@ -75,14 +75,21 @@ alias mislearn-up='docker stop mislearn 2>/dev/null || true; docker build -t mis
 | Setting | Where | Purpose |
 | --- | --- | --- |
 | `GEMINI_API_KEY` | `.env.local` or server environment | Used for Gemini Live access |
-| `GOOGLE_CLIENT_ID` | Server environment | OAuth client ID for Sign in with Google |
-| `GOOGLE_CLIENT_SECRET` | Server environment | OAuth client secret for Sign in with Google |
+| `GOOGLE_CLIENT_ID` | `.env.local` or server environment | OAuth client ID for Sign in with Google |
+| `GOOGLE_CLIENT_SECRET` | `.env.local` or server environment | OAuth client secret for Sign in with Google |
 | `SESSION_SECRET` | Server environment | Secret used to sign login cookies |
-| `APP_BASE_URL` | Server environment | Public app URL used for OAuth redirect URIs |
+| `APP_BASE_URL` | `.env.local` or server environment | Public app URL used for OAuth redirect URIs |
 | `PORT` | Server environment | Port for the Express app, default `8787` |
 | `SQLITE_DB_PATH` | Server environment | Custom path for the SQLite database |
 
-For Google OAuth, add this redirect URI in Google Cloud Console:
+## Google Sign-In Setup
+
+Google sign-in is optional. If you configure it, vocabulary added before sign-in is moved from the current browser into the user's account, which makes it available on other devices.
+
+1. Open [Google Cloud Console](https://console.cloud.google.com/), create or select a project, then open **Google Auth Platform**.
+2. In **Audience**, choose **External** unless this app is exclusively for users in your Google Workspace organization. While the app is in testing, add each Google account you will use under **Test users**.
+3. Open **Clients** (or **APIs & Services → Credentials**), select **Create client**, and choose **Web application**.
+4. Add the appropriate authorized redirect URI:
 
 ```text
 http://localhost:3000/api/auth/google/callback
@@ -93,6 +100,19 @@ For production, add the same path on your real HTTPS domain, for example:
 ```text
 https://your-domain.com/api/auth/google/callback
 ```
+
+5. Copy the generated client ID and client secret into `.env.local`:
+
+```env
+GOOGLE_CLIENT_ID=your_google_oauth_client_id
+GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
+SESSION_SECRET=replace_with_a_long_random_string
+
+# Set this only when the app is not running at http://localhost:3000.
+APP_BASE_URL=https://your-domain.com
+```
+
+Generate a suitable session secret with `openssl rand -base64 32`. Restart the server after changing `.env.local`. Never commit this file or any OAuth secret.
 
 ## Supported Native Languages
 

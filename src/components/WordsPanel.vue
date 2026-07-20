@@ -41,6 +41,10 @@ const form = ref({
 
 const hasWords = computed(() => words.value.length > 0);
 const isSignedIn = computed(() => Boolean(props.user));
+const userInitial = computed(() => {
+  const label = props.user?.name || props.user?.email || '?';
+  return label.trim().charAt(0).toUpperCase() || '?';
+});
 
 async function loadWords() {
   loading.value = true;
@@ -170,13 +174,30 @@ watch(
                 v-else
                 class="mb-4 flex items-center justify-between gap-3 rounded-3xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3"
               >
-                <div class="min-w-0">
-                  <p class="truncate text-sm font-medium text-emerald-100">
-                    Synced as {{ props.user?.email }}
-                  </p>
-                  <p class="mt-0.5 text-xs text-emerald-50/55">
-                    {{ syncStatus === 'syncing' ? 'Moving local words to your account...' : 'Words are saved on the server.' }}
-                  </p>
+                <div class="flex min-w-0 items-center gap-3">
+                  <img
+                    v-if="props.user?.picture"
+                    :src="props.user.picture"
+                    :alt="props.user.name || props.user.email"
+                    referrerpolicy="no-referrer"
+                    class="h-10 w-10 shrink-0 rounded-full border border-white/20 bg-emerald-950/40 object-cover"
+                  />
+                  <div
+                    v-else
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-emerald-700/50 text-sm font-semibold text-emerald-50"
+                    :aria-label="props.user?.name || props.user?.email"
+                  >
+                    {{ userInitial }}
+                  </div>
+
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-medium text-emerald-100">
+                      Synced as {{ props.user?.email }}
+                    </p>
+                    <p class="mt-0.5 text-xs text-emerald-50/55">
+                      {{ syncStatus === 'syncing' ? 'Moving local words to your account...' : 'Words are saved on the server.' }}
+                    </p>
+                  </div>
                 </div>
 
                 <button
