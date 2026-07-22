@@ -6,6 +6,12 @@ const SHELL_ASSETS = [
   '/icon-192.png',
   '/icon-512.png',
   '/apple-touch-icon.png',
+  '/apple-splash-1125x2436.png',
+  '/apple-splash-1170x2532.png',
+  '/apple-splash-1179x2556.png',
+  '/apple-splash-1206x2622.png',
+  '/apple-splash-1242x2688.png',
+  '/apple-splash-1290x2796.png',
   '/pwa-precache-manifest.json'
 ];
 let currentCacheName = 'mislearn-pwa-shell';

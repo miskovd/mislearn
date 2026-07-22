@@ -55,11 +55,11 @@ function handleSave() {
 <template>
   <Teleport to="body">
     <Transition name="modal-fade">
-      <div v-if="open" class="modal-viewport fixed inset-0 z-[100] overflow-y-auto">
-        <div class="fixed inset-0 bg-black/65 backdrop-blur-sm" @click="emit('close')" />
+      <div v-if="open" class="modal-viewport fixed inset-0 z-[100]">
+        <div class="fixed inset-0 bg-black/45 backdrop-blur-md" @click="emit('close')" />
 
         <Transition name="modal-pop">
-          <section class="relative mx-auto max-h-[calc(100dvh-2rem)] w-full max-w-[520px] overflow-y-auto rounded-[32px] border border-white/10 bg-[#120b08]/95 p-5 text-white shadow-2xl shadow-black/50 sm:p-6">
+          <section class="modal-glass relative max-h-full w-full max-w-[520px] overflow-y-auto rounded-[32px] border border-orange-100/20 p-5 text-white shadow-2xl shadow-black/50 sm:p-6">
             <header class="flex items-start justify-between gap-4">
               <div class="flex items-start gap-3">
                 <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-300">
@@ -155,7 +155,17 @@ function handleSave() {
 }
 
 .modal-viewport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
     max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+}
+
+.modal-glass {
+  background: linear-gradient(145deg, rgba(62, 28, 13, 0.78), rgba(22, 10, 5, 0.68));
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 242, 222, 0.2), inset 0 -1px 0 rgba(255, 146, 60, 0.13);
+  backdrop-filter: blur(24px) saturate(135%);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
 }
 </style>

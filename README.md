@@ -13,7 +13,7 @@ Mislearn is a live English tutor built with Vue, Vite, Express, SQLite, and Gemi
 ## Requirements
 
 - Node.js
-- A valid `GEMINI_API_KEY`
+- A personal Gemini API key (entered in the app and stored only in that browser)
 
 ## Quick Start
 
@@ -23,7 +23,6 @@ Mislearn is a live English tutor built with Vue, Vite, Express, SQLite, and Gemi
    ```
 2. Copy `.env.local.demo` to `.env.local`, then set the values you need:
    ```env
-   GEMINI_API_KEY=your_api_key_here
    GOOGLE_CLIENT_ID=your_google_oauth_client_id
    GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
    SESSION_SECRET=replace_with_a_long_random_string
@@ -46,7 +45,7 @@ Mislearn now includes a web app manifest and service worker. After you open the 
 
 - The app uses your browser microphone for live practice.
 - If you save a Gemini key in the app, that browser-stored key takes priority.
-- If no browser key is saved, the app falls back to `GEMINI_API_KEY`.
+- Gemini Live uses the key that the user enters in the browser. The server does not provide a fallback key to the client.
 - Vocabulary entries are stored in the current browser until sign-in.
 - After Google sign-in, local words are moved into `data/words.sqlite` under that user account.
 - The SQLite database runs in WAL mode and persists across restarts.
@@ -59,7 +58,6 @@ For local testing, stop the previous container, rebuild the image, and start a f
 docker stop mislearn 2>/dev/null || true
 docker build -t mislearn .
 docker run -d --name mislearn -p 8787:8787 \
-  -e GEMINI_API_KEY=your_api_key_here \
   -v "$(pwd)/data:/app/data" \
   mislearn
 ```
@@ -67,14 +65,13 @@ docker run -d --name mislearn -p 8787:8787 \
 If you prefer a one-line helper, you can also define:
 
 ```bash
-alias mislearn-up='docker stop mislearn 2>/dev/null || true; docker build -t mislearn .; docker run -d --name mislearn -p 8787:8787 -e GEMINI_API_KEY=your_api_key_here -v "$(pwd)/data:/app/data" mislearn'
+alias mislearn-up='docker stop mislearn 2>/dev/null || true; docker build -t mislearn .; docker run -d --name mislearn -p 8787:8787 -v "$(pwd)/data:/app/data" mislearn'
 ```
 
 ## Configuration
 
 | Setting | Where | Purpose |
 | --- | --- | --- |
-| `GEMINI_API_KEY` | `.env.local` or server environment | Used for Gemini Live access |
 | `GOOGLE_CLIENT_ID` | `.env.local` or server environment | OAuth client ID for Sign in with Google |
 | `GOOGLE_CLIENT_SECRET` | `.env.local` or server environment | OAuth client secret for Sign in with Google |
 | `SESSION_SECRET` | Server environment | Secret used to sign login cookies |
@@ -129,7 +126,6 @@ You can change the native language from the profile button in the app. That lang
    npm install
    ```
 2. Set the environment variables you need:
-   - `GEMINI_API_KEY`
    - Optional: `PORT`
    - Optional: `SQLITE_DB_PATH`
 3. Build the frontend:

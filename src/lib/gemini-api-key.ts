@@ -42,6 +42,5 @@ export function clearStoredGeminiApiKey() {
 }
 
 export function getEffectiveGeminiApiKey() {
-  return getStoredGeminiApiKey() || (process.env.GEMINI_API_KEY || '').trim();
+  return getStoredGeminiApiKey();
 }
-

@@ -23,7 +23,11 @@ export interface StartSessionOptions {
   apiKey: string;
   nativeLanguage?: NativeLanguage;
   practice?: PracticeOptions | null;
+  startMicrophone?: boolean;
 }
+
+export interface PreparedDictionaryEntry { word: string; translation: string; context: string; }
+export interface TrainingGrade { correct: boolean; feedback?: string; }
 
 function getLanguageInstruction(language: NativeLanguage) {
   switch (language) {
@@ -37,7 +41,16 @@ function getLanguageInstruction(language: NativeLanguage) {
   }
 }
 
-function buildPracticeInstruction(practice: PracticeOptions) {
+function getNativeLanguageName(language: NativeLanguage) {
+  switch (language) {
+    case 'uk': return 'Ukrainian';
+    case 'ru': return 'Russian';
+    case 'fr':
+    default: return 'French';
+  }
+}
+
+export function buildPracticeInstruction(practice: PracticeOptions) {
   const targetWord = practice.word.trim();
   const targetTranslation = practice.translation?.trim();
   const targetContext = practice.context?.trim();
@@ -46,43 +59,49 @@ function buildPracticeInstruction(practice: PracticeOptions) {
     ? `Target word: "${targetWord}" (${targetTranslation}).`
     : `Target word: "${targetWord}".`;
   const contextHint = targetContext ? `Context: ${targetContext}.` : '';
+  const nativeLanguageName = getNativeLanguageName(practice.nativeLanguage);
 
   if (practice.direction === 'english-to-native') {
     return `Vocabulary testing mode.
 ${focusHint}
 ${contextHint}
-1. Give one short English sentence that uses the target word naturally.
-2. Ask the user to translate the sentence into the chosen native language.
-3. Wait for the user's answer before continuing.
-4. If the answer is wrong or incomplete, correct it briefly in the chosen native language, show the correct translation, and ask for the next attempt.
-5. If the answer is correct, confirm it briefly in the chosen native language and continue with a new sentence using the same target word.
-6. Keep the session focused on the target word and do not drift away from the test.
-7. ${nativeLanguageInstruction}`;
+Opening protocol — follow it exactly once, as soon as you receive the start signal:
+1. In ${nativeLanguageName}, briefly say that the learner must translate the following English sentences into ${nativeLanguageName}.
+2. Immediately say exactly one short, self-contained everyday English sentence that uses the target word or a natural inflection of it. For example, for "work": "Every day I go to work." or "He is working on his project." Do not pause or wait between the instruction and this first sentence.
+3. Then say nothing else and wait for the learner's answer.
+After every learner answer, call grade_training_answer before doing anything else. The application chooses the next word, so do not ask for another attempt and do not continue with another sentence yourself.
+${nativeLanguageInstruction}`;
   }
 
   return `Vocabulary testing mode.
 ${focusHint}
 ${contextHint}
-1. Give one short prompt in the chosen native language.
-2. Ask the user to answer in English using the target word naturally.
-3. Wait for the user's answer before continuing.
-4. If the answer is wrong or awkward, correct it briefly in English first, then explain the correction in the chosen native language.
-5. If the answer is correct, confirm it briefly and continue with a new prompt in the chosen native language.
-6. Keep the session focused on the target word and do not drift away from the test.
-7. ${nativeLanguageInstruction}`;
+Opening protocol — follow it exactly once, as soon as you receive the start signal:
+1. In ${nativeLanguageName}, briefly say that the learner must answer the following prompts in English and use the target word naturally.
+2. Immediately give exactly one short, self-contained everyday ${nativeLanguageName} sentence which the learner can translate using the target word or a natural inflection. For example, for "work" in French: "On va travailler demain matin." or "Samedi et dimanche, on ne travaille pas." Do not give the English answer. Do not pause or wait between the instruction and this first prompt.
+3. Then say nothing else and wait for the learner's answer.
+After every learner answer, call grade_training_answer before doing anything else. The application chooses the next word, so do not ask for another attempt and do not continue with another prompt yourself.
+${nativeLanguageInstruction}`;
 }
 
 export function useGeminiLive() {
   const isConnected = ref(false);
   const isRecording = ref(false);
+  const isTutorSpeaking = ref(false);
   const messages = ref<Message[]>([]);
   const error = ref<string | null>(null);
+  const isAudioMuted = ref(localStorage.getItem('mislearn.aiAudioMuted') === 'true');
 
   const sessionRef = ref<any>(null);
   const audioContextRef = ref<AudioContext | null>(null);
   const processorRef = ref<ScriptProcessorNode | null>(null);
   const audioQueueRef = ref<AudioQueue | null>(null);
-  const currentModelTurnRef = ref<string>("");
+  let activeModelMessageIndex: number | null = null;
+  let activeUserMessageIndex: number | null = null;
+  let lastSentText = '';
+  const hiddenRealtimeTexts = new Set<string>();
+  let micStream: MediaStream | null = null;
+  let startMicRef: (() => Promise<void>) | null = null;
 
   const stopSession = () => {
     if (processorRef.value) {
@@ -93,6 +112,8 @@ export function useGeminiLive() {
       audioContextRef.value.close();
       audioContextRef.value = null;
     }
+    micStream?.getTracks().forEach((track) => track.stop());
+    micStream = null;
     if (sessionRef.value) {
       sessionRef.value.close();
       sessionRef.value = null;
@@ -102,9 +123,20 @@ export function useGeminiLive() {
     }
     isConnected.value = false;
     isRecording.value = false;
+    isTutorSpeaking.value = false;
   };
 
-  const startSession = async ({ apiKey, nativeLanguage = 'fr', practice = null }: StartSessionOptions) => {
+  const stopMic = () => {
+    processorRef.value?.disconnect(); processorRef.value = null;
+    audioContextRef.value?.close(); audioContextRef.value = null;
+    micStream?.getTracks().forEach((track) => track.stop()); micStream = null;
+    isRecording.value = false;
+  };
+  const setAudioMuted = (muted: boolean) => {
+    isAudioMuted.value = muted; localStorage.setItem('mislearn.aiAudioMuted', String(muted));
+    if (muted) audioQueueRef.value?.stop();
+  };
+  const startSession = async ({ apiKey, nativeLanguage = 'fr', practice = null, startMicrophone = true }: StartSessionOptions) => {
     try {
       error.value = null;
       const normalizedApiKey = apiKey.trim();
@@ -114,8 +146,18 @@ export function useGeminiLive() {
       }
 
       const ai = new GoogleGenAI({ apiKey: normalizedApiKey });
-      
+      activeModelMessageIndex = null;
+      activeUserMessageIndex = null;
+      lastSentText = '';
+      hiddenRealtimeTexts.clear();
+      isTutorSpeaking.value = false;
       audioQueueRef.value = new AudioQueue(24000);
+      let startMicAfterOpeningTutorTurn = Boolean(practice && startMicrophone);
+      const handleMicrophoneFailure = (cause: unknown) => {
+        console.error('Could not start microphone:', cause);
+        error.value = 'Microphone access failed. Use HTTPS on mobile devices, allow the microphone, then try again.';
+        stopSession();
+      };
 
       const baseInstruction = `You are a friendly and professional English tutor.
 Your goal is to help the user practice English conversation.
@@ -123,12 +165,14 @@ Your goal is to help the user practice English conversation.
 2. If you notice any grammatical errors, pronunciation issues, or awkward phrasing, gently correct them.
 3. Provide the correction first, then continue the conversation naturally.
 4. Keep your responses concise and encouraging.
-5. ${getLanguageInstruction(nativeLanguage)}`;
+5. ${getLanguageInstruction(nativeLanguage)}
+6. When the learner asks to add or save an English word to their dictionary, call prepare_dictionary_entry with a normalized word, its native-language translation, and a short context. Never claim that a card was saved: the learner must confirm it in the app.
+7. During vocabulary testing, after every learner answer call grade_training_answer with correct=true or false and a short feedback message.`;
 
       const systemInstruction = practice ? `${baseInstruction}\n\n${buildPracticeInstruction(practice)}` : baseInstruction;
 
       const session = await ai.live.connect({
-        model: "gemini-2.5-flash-native-audio-preview-09-2025",
+        model: "gemini-3.1-flash-live-preview",
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
@@ -137,16 +181,37 @@ Your goal is to help the user practice English conversation.
           systemInstruction,
           inputAudioTranscription: {},
           outputAudioTranscription: {},
+          tools: [{ functionDeclarations: [
+            { name: 'prepare_dictionary_entry', description: 'Prepare, but never save, a vocabulary card when the user asks to add a word.', parametersJsonSchema: { type: 'object', properties: { word: { type: 'string' }, translation: { type: 'string' }, context: { type: 'string' } }, required: ['word', 'translation'] } },
+            { name: 'grade_training_answer', description: 'Grade the learner answer for the current vocabulary exercise.', parametersJsonSchema: { type: 'object', properties: { correct: { type: 'boolean' }, feedback: { type: 'string' } }, required: ['correct'] } }
+          ] }],
         },
         callbacks: {
           onopen: () => {
             isConnected.value = true;
-            startMic();
+            if (startMicrophone && !startMicAfterOpeningTutorTurn) {
+              void startMic().catch(handleMicrophoneFailure);
+            }
           },
           onmessage: async (message: LiveServerMessage) => {
-            const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
-            if (base64Audio && audioQueueRef.value) {
-              audioQueueRef.value.addChunk(base64Audio);
+            const serverContent = message.serverContent as any;
+            const appendModelFragment = (fragment: string) => {
+              if (!fragment) return;
+              const active = activeModelMessageIndex === null ? undefined : messages.value[activeModelMessageIndex];
+              if (active?.role === 'model' && !active.isInterrupted) {
+                messages.value[activeModelMessageIndex!] = { ...active, text: active.text + fragment };
+                return;
+              }
+              messages.value.push({ role: 'model', text: fragment });
+              activeModelMessageIndex = messages.value.length - 1;
+            };
+
+            for (const part of serverContent?.modelTurn?.parts || []) {
+              if (part.inlineData?.data) {
+                isTutorSpeaking.value = true;
+                if (!isAudioMuted.value) audioQueueRef.value?.addChunk(part.inlineData.data);
+              }
+              if (part.text) appendModelFragment(part.text);
             }
 
             if (message.serverContent?.interrupted) {
@@ -155,27 +220,45 @@ Your goal is to help the user practice English conversation.
               if (last && last.role === 'model') {
                 messages.value[messages.value.length - 1] = { ...last, isInterrupted: true };
               }
+              activeModelMessageIndex = null;
+              isTutorSpeaking.value = false;
             }
 
-            const serverContent = message.serverContent as any;
-            const userText = serverContent?.userContent?.parts?.[0]?.text;
+            const userText = serverContent?.inputTranscription?.text || serverContent?.userContent?.parts?.map((part: any) => part.text || '').join('');
             if (userText) {
-              messages.value.push({ role: 'user', text: userText });
+              const normalizedUserText = userText.trim();
+              if (hiddenRealtimeTexts.delete(normalizedUserText)) {
+                activeModelMessageIndex = null;
+              } else if (normalizedUserText !== lastSentText) {
+                const active = activeUserMessageIndex === null ? undefined : messages.value[activeUserMessageIndex];
+                if (active?.role === 'user' && !active.isInterrupted) {
+                  messages.value[activeUserMessageIndex!] = { ...active, text: active.text + userText };
+                } else {
+                  messages.value.push({ role: 'user', text: userText });
+                  activeUserMessageIndex = messages.value.length - 1;
+                }
+              }
+              lastSentText = '';
+              activeModelMessageIndex = null;
+              isTutorSpeaking.value = false;
             }
 
-            const modelText = serverContent?.modelTurn?.parts?.[0]?.text;
-            if (modelText) {
-              currentModelTurnRef.value += modelText;
-              const last = messages.value[messages.value.length - 1];
-              if (last && last.role === 'model' && !last.isInterrupted) {
-                messages.value[messages.value.length - 1] = { role: 'model', text: currentModelTurnRef.value };
-              } else {
-                messages.value.push({ role: 'model', text: modelText });
-              }
+            const outputText = serverContent?.outputTranscription?.text;
+            if (outputText && !serverContent?.modelTurn?.parts?.some((part: any) => part.text)) appendModelFragment(outputText);
+            const calls = (message as any).toolCall?.functionCalls || (message as any).toolCall?.functionCalls || [];
+            if (calls.length) {
+              const responses = calls.map((call: any) => ({ id: call.id, name: call.name, response: call.args || {} }));
+              session.sendToolResponse({ functionResponses: responses });
+              window.dispatchEvent(new CustomEvent('mislearn-tool-call', { detail: calls }));
             }
 
             if (message.serverContent?.turnComplete) {
-              currentModelTurnRef.value = "";
+              activeUserMessageIndex = null;
+              isTutorSpeaking.value = false;
+              if (startMicAfterOpeningTutorTurn) {
+                startMicAfterOpeningTutorTurn = false;
+                void startMic().catch(handleMicrophoneFailure);
+              }
             }
           },
           onclose: () => {
@@ -190,9 +273,23 @@ Your goal is to help the user practice English conversation.
       });
 
       sessionRef.value = session;
+      startMicRef = startMic;
+      if (practice) {
+        const startSignal = 'Start the vocabulary exercise now: say the opening instruction and the first task, then wait for my answer.';
+        hiddenRealtimeTexts.add(startSignal);
+        isTutorSpeaking.value = true;
+        session.sendRealtimeInput({ text: startSignal });
+      }
 
       async function startMic() {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+        micStream = stream;
         const audioContext = new AudioContext({ sampleRate: 16000 });
         audioContextRef.value = audioContext;
         
@@ -206,7 +303,7 @@ Your goal is to help the user practice English conversation.
           const base64Data = btoa(String.fromCharCode(...new Uint8Array(pcmData)));
           
           session.sendRealtimeInput({
-            media: { data: base64Data, mimeType: 'audio/pcm;rate=16000' }
+            audio: { data: base64Data, mimeType: 'audio/pcm;rate=16000' }
           });
         };
 
@@ -214,7 +311,6 @@ Your goal is to help the user practice English conversation.
         processor.connect(audioContext.destination);
         isRecording.value = true;
       }
-
     } catch (err) {
       console.error("Failed to start session:", err);
       error.value = "Could not access microphone or connect to AI.";
@@ -225,6 +321,22 @@ Your goal is to help the user practice English conversation.
     return true;
   };
 
+  const resumeMic = async () => {
+    if (sessionRef.value && !isRecording.value) {
+      await startMicRef?.();
+    }
+  };
+
+  const sendText = (text: string) => {
+    if (!sessionRef.value || !text.trim()) return;
+    const submitted = text.trim();
+    sessionRef.value.sendRealtimeInput({ text: submitted });
+    messages.value.push({ role: 'user', text: submitted });
+    lastSentText = submitted;
+    activeUserMessageIndex = messages.value.length - 1;
+    activeModelMessageIndex = null;
+  };
+
   onUnmounted(() => {
     stopSession();
   });
@@ -232,9 +344,12 @@ Your goal is to help the user practice English conversation.
   return {
     isConnected,
     isRecording,
+    isTutorSpeaking,
     messages,
     error,
+    isAudioMuted,
     startSession,
     stopSession
+    , stopMic, resumeMic, setAudioMuted, sendText
   };
 }

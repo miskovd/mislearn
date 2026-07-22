@@ -6,13 +6,47 @@
     <meta name="theme-color" content="#0a0502" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Mislearn" />
     <title>Mislearn</title>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-startup-image" href="/apple-splash-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/apple-splash-1170x2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/apple-splash-1179x2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/apple-splash-1206x2622.png" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/apple-splash-1242x2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/apple-splash-1290x2796.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
   </head>
   <body>
+    <div id="app-loader" class="app-loader" role="status" aria-live="polite" aria-label="Loading Mislearn">
+      <div class="app-loader-wave app-loader-wave-back"></div>
+      <div class="app-loader-wave app-loader-wave-front"></div>
+      <div class="app-loader-content">
+        <img class="app-loader-icon" src="/apple-touch-icon.png" width="88" height="88" alt="" />
+        <p class="app-loader-name">Mislearn</p>
+        <p class="app-loader-tagline">First step - real progress!</p>
+        <div class="app-loader-track" aria-hidden="true"><span></span></div>
+        <p class="app-loader-label">Preparing your lesson</p>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.ts"></script>
+    <style>
+      .app-loader { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; overflow: hidden; color: #fffaf5; background: radial-gradient(circle at 50% 0%, #71320f 0%, #200b03 38%, #0a0502 76%); opacity: 1; transition: opacity .28s ease, visibility .28s ease; }
+      .app-loader.is-ready { visibility: hidden; opacity: 0; pointer-events: none; }
+      .app-loader-content { position: relative; z-index: 1; display: grid; justify-items: center; padding: 2rem; text-align: center; }
+      .app-loader-icon { width: 5.5rem; height: 5.5rem; border: 1px solid rgba(255,255,255,.28); border-radius: 1.65rem; box-shadow: 0 18px 45px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.3); }
+      .app-loader-name { margin: 1.25rem 0 0; font: 700 1.35rem/1 system-ui, sans-serif; letter-spacing: -.02em; }
+      .app-loader-tagline { margin: .5rem 0 1.65rem; color: rgba(255,232,208,.72); font: 500 .9rem/1.4 system-ui, sans-serif; }
+      .app-loader-track { width: min(68vw, 16rem); height: .28rem; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.14); }
+      .app-loader-track span { display: block; width: 42%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #f97316, #fbbf24, #fff2d6); box-shadow: 0 0 14px rgba(251,146,60,.85); animation: app-loader-progress 1.18s ease-in-out infinite; }
+      .app-loader-label { margin: .8rem 0 0; color: rgba(255,241,225,.48); font: 500 .7rem/1 system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; }
+      .app-loader-wave { position: absolute; width: 145%; height: 36%; left: -22%; border-radius: 50% 50% 0 0 / 25% 25% 0 0; filter: blur(1px); }
+      .app-loader-wave-back { bottom: -17%; transform: rotate(-8deg); background: linear-gradient(100deg, rgba(234,88,12,.42), rgba(251,191,36,.65)); }
+      .app-loader-wave-front { bottom: -23%; transform: rotate(8deg); background: linear-gradient(100deg, rgba(249,115,22,.82), rgba(251,146,60,.42)); }
+      @keyframes app-loader-progress { 0% { transform: translateX(-120%); } 55%, 100% { transform: translateX(290%); } }
+      @media (prefers-reduced-motion: reduce) { .app-loader-track span { animation: none; transform: translateX(70%); } .app-loader { transition: none; } }
+    </style>
   </body>
 </html>

@@ -7,4 +7,11 @@ data/
 .codex
 *.log
 .env.local
+.env
+.env.*
+!.env.local.demo
 !.env.example
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+PROGRESS.md

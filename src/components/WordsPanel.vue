@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
-import { BookOpen, Clock3, Cloud, Loader2, LogOut, MessageSquarePlus, Languages, Plus, ShieldCheck, Trash2, X } from 'lucide-vue-next';
+import { BookOpen, Clock3, Cloud, Download, FileUp, Loader2, LogOut, MessageSquarePlus, Languages, Plus, Settings2, ShieldCheck, Sparkles, Trash2, X } from 'lucide-vue-next';
 import {
   createLocalWord,
   createRemoteWord,
@@ -8,8 +8,13 @@ import {
   deleteRemoteWord,
   fetchLocalWords,
   fetchRemoteWords,
+  updateLocalWordRating,
+  updateRemoteWordRating,
+  updateLocalWord,
+  updateRemoteWord,
   type WordEntry
 } from '../lib/words-api';
+import { IMPORT_OPTIONS_KEY, buildImportPlan, parseCsv, wordsToCsv, type ImportConflictOption } from '../lib/csv';
 import { startGoogleSignIn, type AuthUser } from '../lib/auth-api';
 import { getLanguageLabel, type NativeLanguage } from '../lib/profile-settings';
 import type { PracticeDirection } from '../hooks/useGeminiLive';
@@ -32,6 +37,12 @@ const loading = ref(false);
 const loadingError = ref<string | null>(null);
 const submitting = ref(false);
 const showForm = ref(false);
+const importInput = ref<HTMLInputElement | null>(null);
+const importOption = ref<ImportConflictOption>((localStorage.getItem(IMPORT_OPTIONS_KEY) as ImportConflictOption) || 'keep');
+const showOptions = ref(false);
+const showTrainer = ref(false);
+const importNotice = ref('');
+const addFormRef = ref<HTMLFormElement | null>(null);
 
 const form = ref({
   word: '',
@@ -98,6 +109,54 @@ async function handleDeleteWord(id: number) {
   }
 }
 
+async function setRating(word: WordEntry, rating: number) {
+  try {
+    const update = isSignedIn.value ? updateRemoteWordRating : updateLocalWordRating;
+    const saved = await update(word.id, rating);
+    if (saved) words.value = words.value.map((entry) => entry.id === word.id ? saved : entry);
+  } catch (error) { loadingError.value = error instanceof Error ? error.message : 'Failed to update rating.'; }
+}
+
+function downloadCsv() {
+  const url = URL.createObjectURL(new Blob([wordsToCsv(words.value)], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a'); link.href = url; link.download = 'mislearn-words.csv'; link.click(); URL.revokeObjectURL(url);
+}
+
+async function importCsv(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  try {
+    const parsed = parseCsv(await file.text());
+    const plan = buildImportPlan(words.value, parsed.entries, importOption.value);
+    for (const update of plan.updates) {
+      await (isSignedIn.value ? updateRemoteWord : updateLocalWord)(update.id, update.payload);
+    }
+    for (const entry of plan.creates) {
+      await (isSignedIn.value ? createRemoteWord : createLocalWord)(entry);
+    }
+    await loadWords(); importNotice.value = `Imported ${plan.creates.length + plan.updates.length}; skipped ${parsed.skipped + plan.skipped}.`;
+  } catch (error) { loadingError.value = error instanceof Error ? error.message : 'Could not import CSV.'; }
+  finally { (event.target as HTMLInputElement).value = ''; }
+}
+
+function saveOptions() { localStorage.setItem(IMPORT_OPTIONS_KEY, importOption.value); showOptions.value = false; }
+
+async function toggleAddForm() {
+  showForm.value = !showForm.value;
+  if (showForm.value) {
+    await nextTick();
+    addFormRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function openTrainer() { showTrainer.value = true; }
+function chooseTrainer(direction: PracticeDirection) {
+  const lowest = Math.min(...words.value.map((word) => word.learnRating));
+  const tied = words.value.filter((word) => word.learnRating === lowest).sort(() => Math.random() - 0.5);
+  if (tied[0]) startPractice(tied[0], direction);
+  showTrainer.value = false;
+}
+
 function startPractice(word: WordEntry, direction: PracticeDirection) {
   emit('practice', { word, direction });
 }
@@ -120,10 +179,10 @@ watch(
   <Teleport to="body">
     <Transition name="panel-fade">
       <div v-if="open" class="fixed inset-0 z-50">
-        <div class="absolute inset-0 bg-black/55 backdrop-blur-sm" @click="emit('close')" />
+        <div class="absolute inset-0 bg-black/42 backdrop-blur-md" @click="emit('close')" />
 
         <Transition name="panel-slide">
-          <aside class="absolute inset-y-0 right-0 flex w-full max-w-[520px] flex-col border-l border-white/10 bg-[#120b08]/95 text-white shadow-2xl shadow-black/40">
+          <aside class="panel-glass absolute inset-y-0 right-0 flex w-full max-w-[520px] flex-col overflow-hidden border-l border-orange-100/20 text-white shadow-2xl shadow-black/40">
             <header class="flex items-center justify-between border-b border-white/10 px-6 py-5">
               <div class="flex items-center gap-3">
                 <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-300">
@@ -144,6 +203,7 @@ watch(
               </button>
             </header>
 
+            <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <div class="border-b border-white/10 px-6 py-4">
               <div
                 v-if="!isSignedIn"
@@ -211,17 +271,18 @@ watch(
                 </button>
               </div>
 
-              <button
-                type="button"
-                class="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-400"
-                @click="showForm = !showForm"
-              >
-                <Plus class="h-4 w-4" />
-                <span>{{ showForm ? 'Close form' : 'Add word' }}</span>
-              </button>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" class="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-400" @click="toggleAddForm"><Plus class="h-4 w-4" /><span>{{ showForm ? 'Close form' : 'Add word' }}</span></button>
+                <button type="button" class="rounded-full border border-white/10 p-2 text-white/70 hover:bg-white/10" aria-label="Export CSV" @click="downloadCsv"><Download class="h-4 w-4" /></button>
+                <button type="button" class="rounded-full border border-white/10 p-2 text-white/70 hover:bg-white/10" aria-label="Import CSV" @click="importInput?.click()"><FileUp class="h-4 w-4" /></button>
+                <button type="button" class="rounded-full border border-white/10 p-2 text-white/70 hover:bg-white/10" aria-label="Import options" @click="showOptions = true"><Settings2 class="h-4 w-4" /></button>
+                <button type="button" :disabled="!hasWords" class="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-100 disabled:opacity-40" @click="openTrainer"><Sparkles class="h-4 w-4" />AI Trainer</button>
+                <input ref="importInput" type="file" accept=".csv,text/csv" class="hidden" @change="importCsv" />
+              </div>
+              <p v-if="importNotice" class="mt-3 text-sm text-emerald-200">{{ importNotice }}</p>
 
               <Transition name="form-drop">
-                <form v-if="showForm" class="mt-4 space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4" @submit.prevent="handleAddWord">
+                <form v-if="showForm" ref="addFormRef" class="mt-4 scroll-mt-4 space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4" @submit.prevent="handleAddWord">
                   <div class="grid gap-3 sm:grid-cols-2">
                     <label class="space-y-2">
                       <span class="text-xs uppercase tracking-[0.2em] text-white/35">Word</span>
@@ -273,7 +334,7 @@ watch(
               </p>
             </div>
 
-            <div class="flex-1 overflow-y-auto px-6 py-5">
+            <div class="px-6 py-5">
               <div v-if="loading" class="flex h-full items-center justify-center text-white/40">
                 <Loader2 class="mr-2 h-5 w-5 animate-spin" />
                 Loading words...
@@ -314,6 +375,10 @@ watch(
                     {{ word.context }}
                   </p>
 
+                  <div class="mt-3 flex items-center gap-1" aria-label="Learning rating">
+                    <span v-for="rating in [-3, -2, -1, 0, 1, 2, 3]" :key="rating" :title="`Learning rating ${rating}`" :class="word.learnRating === rating ? 'scale-110 text-amber-300 opacity-100' : 'text-white/25 opacity-70'" class="inline-flex h-7 w-7 items-center justify-center rounded-full text-sm transition">{{ rating < 0 ? '☹' : rating === 0 ? '😐' : '😊' }}</span>
+                  </div>
+
                   <div class="mt-4 grid gap-2 sm:grid-cols-2">
                     <button
                       type="button"
@@ -340,14 +405,50 @@ watch(
                 </article>
               </div>
             </div>
+            </div>
           </aside>
         </Transition>
       </div>
     </Transition>
+
+    <Transition name="panel-fade"><div v-if="showOptions" class="fixed inset-0 z-[80] grid place-items-center bg-black/45 p-5 backdrop-blur-md"><section class="modal-glass w-full max-w-md rounded-3xl border border-orange-100/20 p-6"><div class="flex justify-between"><h2 class="modal-title text-lg font-semibold">Options</h2><button @click="showOptions = false"><X /></button></div><p class="mt-5 text-xs uppercase tracking-widest text-white/40">Import options</p><label class="option-card mt-4 flex gap-3 rounded-2xl border border-white/10 p-4"><input v-model="importOption" value="keep" type="radio" /><span><b class="option-title">Keep my word</b><br><small class="text-white/55">Keep existing entries on conflicts.</small></span></label><label class="option-card mt-3 flex gap-3 rounded-2xl border border-white/10 p-4"><input v-model="importOption" value="replace" type="radio" /><span><b class="option-title">Use imported word</b><br><small class="text-white/55">Replace translation, context and rating.</small></span></label><button class="mt-5 rounded-full bg-amber-500 px-4 py-2 text-sm font-medium" @click="saveOptions">Save options</button></section></div></Transition>
+    <Transition name="panel-fade"><div v-if="showTrainer" class="fixed inset-0 z-[80] grid place-items-center bg-black/45 p-5 backdrop-blur-md"><section class="modal-glass w-full max-w-md rounded-3xl border border-orange-100/20 p-6"><div class="flex justify-between"><h2 class="modal-title text-lg font-semibold">AI Trainer</h2><button @click="showTrainer = false"><X /></button></div><p class="mt-3 text-sm text-white/60">Choose a translation direction. Words with the lowest learning rating come first.</p><div class="mt-5 grid gap-3"><button class="rounded-2xl border border-white/20 bg-white/12 p-4 text-left text-white/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_30px_rgba(0,0,0,0.22)] transition hover:border-white/30 hover:bg-white/18 hover:text-white" @click="chooseTrainer('english-to-native')">English → {{ getLanguageLabel(props.nativeLanguage) }}</button><button class="rounded-2xl border border-white/20 bg-white/12 p-4 text-left text-white/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_30px_rgba(0,0,0,0.22)] transition hover:border-white/30 hover:bg-white/18 hover:text-white" @click="chooseTrainer('native-to-english')">{{ getLanguageLabel(props.nativeLanguage) }} → English</button></div></section></div></Transition>
   </Teleport>
 </template>
 
 <style scoped>
+.panel-glass,
+.modal-glass {
+  background: linear-gradient(145deg, rgba(62, 28, 13, 0.78), rgba(22, 10, 5, 0.68));
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 242, 222, 0.2), inset 0 -1px 0 rgba(255, 146, 60, 0.13);
+  backdrop-filter: blur(24px) saturate(135%);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+}
+
+.modal-title {
+  color: rgba(255, 250, 244, 0.96);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.22);
+}
+
+.option-card {
+  color: rgba(255, 248, 240, 0.95);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.07));
+  backdrop-filter: blur(16px) saturate(130%);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+}
+
+.option-card b {
+  color: rgba(255, 252, 248, 0.98);
+}
+
+.option-title {
+  color: rgba(255, 252, 248, 0.98);
+}
+
+.option-card small {
+  color: rgba(255, 245, 236, 0.72);
+}
+
 .panel-fade-enter-active,
 .panel-fade-leave-active {
   transition: opacity 0.2s ease;

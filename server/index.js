@@ -52,40 +52,46 @@ db.exec(`
     word TEXT NOT NULL,
     translation TEXT NOT NULL DEFAULT '',
     context TEXT NOT NULL DEFAULT '',
+    learn_rating INTEGER NOT NULL DEFAULT 0 CHECK (learn_rating >= -3 AND learn_rating <= 3),
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
-  CREATE INDEX IF NOT EXISTS idx_words_user_created ON words(user_id, created_at DESC, id DESC);
   CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 `);
 
 const wordColumns = db.prepare(`PRAGMA table_info(words)`).all();
 if (!wordColumns.some((column) => column.name === 'user_id')) {
   db.exec(`ALTER TABLE words ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_words_user_created ON words(user_id, created_at DESC, id DESC)`);
 }
+if (!wordColumns.some((column) => column.name === 'learn_rating')) {
+  db.exec(`ALTER TABLE words ADD COLUMN learn_rating INTEGER NOT NULL DEFAULT 0 CHECK (learn_rating >= -3 AND learn_rating <= 3)`);
+}
+db.exec(`UPDATE words SET learn_rating = 0 WHERE learn_rating IS NULL OR learn_rating < -3 OR learn_rating > 3`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_words_user_created ON words(user_id, created_at DESC, id DESC)`);
 
 const listWordsStmt = db.prepare(`
-  SELECT id, word, translation, context, created_at AS createdAt, updated_at AS updatedAt
+  SELECT id, word, translation, context, learn_rating AS learnRating, created_at AS createdAt, updated_at AS updatedAt
   FROM words
   WHERE user_id = ?
   ORDER BY created_at DESC, id DESC
 `);
 
 const insertWordStmt = db.prepare(`
-  INSERT INTO words (user_id, word, translation, context, created_at, updated_at)
-  VALUES (@userId, @word, @translation, @context, COALESCE(@createdAt, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), COALESCE(@updatedAt, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')))
+  INSERT INTO words (user_id, word, translation, context, learn_rating, created_at, updated_at)
+  VALUES (@userId, @word, @translation, @context, @learnRating, COALESCE(@createdAt, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), COALESCE(@updatedAt, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')))
 `);
 
 const getWordStmt = db.prepare(`
-  SELECT id, word, translation, context, created_at AS createdAt, updated_at AS updatedAt
+  SELECT id, word, translation, context, learn_rating AS learnRating, created_at AS createdAt, updated_at AS updatedAt
   FROM words
   WHERE id = ? AND user_id = ?
 `);
 
 const deleteWordStmt = db.prepare(`DELETE FROM words WHERE id = ? AND user_id = ?`);
+const updateRatingStmt = db.prepare(`UPDATE words SET learn_rating = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND user_id = ?`);
+const updateWordStmt = db.prepare(`UPDATE words SET word = @word, translation = @translation, context = @context, learn_rating = @learnRating, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = @id AND user_id = @userId`);
 
 const getUserBySessionStmt = db.prepare(`
   SELECT users.id, users.email, users.name, users.picture
@@ -215,8 +221,9 @@ function normalizeWordPayload(body) {
   const context = typeof body?.context === 'string' ? body.context.trim() : '';
   const createdAt = typeof body?.createdAt === 'string' ? body.createdAt : null;
   const updatedAt = typeof body?.updatedAt === 'string' ? body.updatedAt : createdAt;
+  const learnRating = Number.isInteger(body?.learnRating) && body.learnRating >= -3 && body.learnRating <= 3 ? body.learnRating : 0;
 
-  return { word, translation, context, createdAt, updatedAt };
+  return { word, translation, context, learnRating, createdAt, updatedAt };
 }
 
 app.get('/api/health', (_req, res) => {
@@ -336,7 +343,7 @@ app.post('/api/words', (req, res) => {
     return;
   }
 
-  const { word, translation, context, createdAt, updatedAt } = normalizeWordPayload(req.body);
+  const { word, translation, context, learnRating, createdAt, updatedAt } = normalizeWordPayload(req.body);
 
   if (!word) {
     res.status(400).json({ error: 'Word is required.' });
@@ -348,6 +355,7 @@ app.post('/api/words', (req, res) => {
     word,
     translation,
     context,
+    learnRating,
     createdAt,
     updatedAt
   });
@@ -402,6 +410,32 @@ app.delete('/api/words/:id', (req, res) => {
   }
 
   res.status(204).send();
+});
+
+app.patch('/api/words/:id', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  const id = Number(req.params.id);
+  const payload = normalizeWordPayload(req.body);
+  if (!Number.isInteger(id) || id <= 0 || !payload.word) { res.status(400).json({ error: 'Invalid word id or word.' }); return; }
+  if (updateWordStmt.run({ ...payload, id, userId: user.id }).changes === 0) { res.status(404).json({ error: 'Word not found.' }); return; }
+  res.json({ word: getWordStmt.get(id, user.id) });
+});
+
+app.patch('/api/words/:id/rating', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  const id = Number(req.params.id);
+  const rating = req.body?.learnRating;
+  if (!Number.isInteger(id) || id <= 0 || !Number.isInteger(rating) || rating < -3 || rating > 3) {
+    res.status(400).json({ error: 'Invalid word id or learn rating.' });
+    return;
+  }
+  if (updateRatingStmt.run(rating, id, user.id).changes === 0) {
+    res.status(404).json({ error: 'Word not found.' });
+    return;
+  }
+  res.json({ word: getWordStmt.get(id, user.id) });
 });
 
 if (fs.existsSync(distDir)) {

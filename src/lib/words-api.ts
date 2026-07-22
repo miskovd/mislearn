@@ -3,6 +3,7 @@ export interface WordEntry {
   word: string;
   translation: string;
   context: string;
+  learnRating: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -15,6 +16,7 @@ export type WordPayload = {
   word: string;
   translation?: string;
   context?: string;
+  learnRating?: number;
 };
 
 const LOCAL_WORDS_KEY = 'mislearn.localWords';
@@ -47,7 +49,7 @@ function readLocalWords() {
       return [];
     }
 
-    return parsed.filter(isWordEntry).sort(sortWords);
+    return parsed.filter(isWordEntry).map((word) => ({ ...word, learnRating: Number.isInteger(word.learnRating) ? Math.max(-3, Math.min(3, word.learnRating)) : 0 })).sort(sortWords);
   } catch {
     return [];
   }
@@ -68,6 +70,7 @@ function isWordEntry(value: unknown): value is WordEntry {
     typeof word.word === 'string' &&
     typeof word.translation === 'string' &&
     typeof word.context === 'string' &&
+    (typeof word.learnRating === 'number' || typeof word.learnRating === 'undefined') &&
     typeof word.createdAt === 'string' &&
     typeof word.updatedAt === 'string'
   );
@@ -96,12 +99,26 @@ export async function createLocalWord(payload: WordPayload) {
     word: payload.word.trim(),
     translation: payload.translation?.trim() || '',
     context: payload.context?.trim() || '',
+    learnRating: Number.isInteger(payload.learnRating) ? Math.max(-3, Math.min(3, payload.learnRating!)) : 0,
     createdAt: now,
     updatedAt: now
   };
 
   writeLocalWords([word, ...readLocalWords()]);
   return word;
+}
+
+export async function updateLocalWordRating(id: number, learnRating: number) {
+  const rating = Math.max(-3, Math.min(3, Math.trunc(learnRating)));
+  const updated = readLocalWords().map((word) => word.id === id ? { ...word, learnRating: rating, updatedAt: new Date().toISOString() } : word);
+  writeLocalWords(updated);
+  return updated.find((word) => word.id === id) || null;
+}
+
+export async function updateLocalWord(id: number, payload: WordPayload) {
+  const updated = readLocalWords().map((word) => word.id === id ? { ...word, word: payload.word.trim(), translation: payload.translation?.trim() || '', context: payload.context?.trim() || '', learnRating: Number.isInteger(payload.learnRating) ? Math.max(-3, Math.min(3, payload.learnRating!)) : word.learnRating, updatedAt: new Date().toISOString() } : word);
+  writeLocalWords(updated);
+  return updated.find((word) => word.id === id) || null;
 }
 
 export async function deleteLocalWord(id: number) {
@@ -126,6 +143,18 @@ export async function deleteRemoteWord(id: number) {
   await requestJson<void>(`/api/words/${id}`, {
     method: 'DELETE'
   });
+}
+
+export async function updateRemoteWordRating(id: number, learnRating: number) {
+  const data = await requestJson<{ word: WordEntry }>(`/api/words/${id}/rating`, {
+    method: 'PATCH', body: JSON.stringify({ learnRating })
+  });
+  return data.word;
+}
+
+export async function updateRemoteWord(id: number, payload: WordPayload) {
+  const data = await requestJson<{ word: WordEntry }>(`/api/words/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+  return data.word;
 }
 
 export async function syncLocalWordsToRemote() {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { KeyRound, Eye, EyeOff, Save, X } from 'lucide-vue-next';
+import { ExternalLink, KeyRound, Eye, EyeOff, Save, X } from 'lucide-vue-next';
 import { clearStoredGeminiApiKey, getStoredGeminiApiKey, setStoredGeminiApiKey } from '../lib/gemini-api-key';
 
 const props = defineProps<{
@@ -22,7 +22,7 @@ const helperText = computed(() => {
     return 'A browser-stored key is active. You can replace it or clear it.';
   }
 
-  return 'No browser key is stored. The app will fall back to GEMINI_API_KEY only when it is available at build time.';
+  return 'Add your own Gemini key to use Live lessons. It stays in this browser and is never sent to our server.';
 });
 
 watch(
@@ -54,11 +54,11 @@ function handleClear() {
 <template>
   <Teleport to="body">
     <Transition name="modal-fade">
-      <div v-if="open" class="modal-viewport fixed inset-0 z-[100] overflow-y-auto">
-        <div class="fixed inset-0 bg-black/65 backdrop-blur-sm" @click="emit('close')" />
+      <div v-if="open" class="modal-viewport fixed inset-0 z-[100]">
+        <div class="fixed inset-0 bg-black/45 backdrop-blur-md" @click="emit('close')" />
 
         <Transition name="modal-pop">
-          <section class="relative mx-auto max-h-[calc(100dvh-2rem)] w-full max-w-[520px] overflow-y-auto rounded-[32px] border border-white/10 bg-[#120b08]/95 p-5 text-white shadow-2xl shadow-black/50 sm:p-6">
+          <section class="modal-glass relative max-h-full w-full max-w-[520px] overflow-y-auto rounded-[32px] border border-orange-100/20 p-5 text-white shadow-2xl shadow-black/50 sm:p-6">
             <header class="flex items-start justify-between gap-4">
               <div class="flex items-start gap-3">
                 <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-500/15 text-orange-300">
@@ -85,6 +85,16 @@ function handleClear() {
               {{ helperText }}
             </p>
 
+            <a
+              href="https://aistudio.google.com/api-keys"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-orange-200/20 bg-orange-500/10 px-4 py-3 text-sm font-medium text-orange-50 transition hover:border-orange-200/35 hover:bg-orange-500/18"
+            >
+              <ExternalLink class="h-4 w-4" />
+              <span>Create a Gemini API key in Google AI Studio</span>
+            </a>
+
             <label class="mt-5 block space-y-2">
               <span class="text-xs uppercase tracking-[0.24em] text-white/35">Gemini API Key</span>
               <input
@@ -97,7 +107,7 @@ function handleClear() {
               />
             </label>
 
-            <div class="mt-4 flex items-center justify-between gap-3">
+            <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <button
                 type="button"
                 class="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm text-white/70 transition hover:bg-white/5 hover:text-white"
@@ -108,11 +118,11 @@ function handleClear() {
                 <span>{{ showKey ? 'Hide' : 'Show' }}</span>
               </button>
 
-              <div class="flex items-center gap-2">
+              <div class="flex w-full items-center gap-2 sm:w-auto">
                 <button
                   v-if="currentKeyPresent"
                   type="button"
-                  class="rounded-full border border-white/10 px-4 py-2 text-sm text-white/70 transition hover:bg-white/5 hover:text-white"
+                  class="min-w-0 flex-1 rounded-full border border-white/10 px-4 py-2 text-sm text-white/70 transition hover:bg-white/5 hover:text-white sm:flex-none"
                   @click="handleClear"
                 >
                   Clear
@@ -120,7 +130,7 @@ function handleClear() {
 
                 <button
                   type="button"
-                  class="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-orange-400"
+                  class="inline-flex min-w-0 flex-1 items-center justify-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-orange-400 sm:flex-none"
                   @click="handleSave"
                 >
                   <Save class="h-4 w-4" />
@@ -162,7 +172,17 @@ function handleClear() {
 }
 
 .modal-viewport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
     max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+}
+
+.modal-glass {
+  background: linear-gradient(145deg, rgba(62, 28, 13, 0.78), rgba(22, 10, 5, 0.68));
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 242, 222, 0.2), inset 0 -1px 0 rgba(255, 146, 60, 0.13);
+  backdrop-filter: blur(24px) saturate(135%);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
 }
 </style>

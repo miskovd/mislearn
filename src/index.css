@@ -19,3 +19,14 @@ html {
 body {
   margin: 0;
 }
+
+/* iOS Safari zooms a page when a focused form control has text smaller than
+   16px. Keep touch-entry controls at that threshold instead of disabling the
+   user's page zoom in the viewport meta tag. */
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
