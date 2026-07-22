@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ExternalLink, KeyRound, Eye, EyeOff, Save, X } from 'lucide-vue-next';
+import { KeyRound, Eye, EyeOff, Save, X } from 'lucide-vue-next';
 import { clearStoredGeminiApiKey, getStoredGeminiApiKey, setStoredGeminiApiKey } from '../lib/gemini-api-key';
 
 const props = defineProps<{
@@ -91,8 +91,8 @@ function handleClear() {
               rel="noopener noreferrer"
               class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-orange-200/20 bg-orange-500/10 px-4 py-3 text-sm font-medium text-orange-50 transition hover:border-orange-200/35 hover:bg-orange-500/18"
             >
-              <ExternalLink class="h-4 w-4" />
-              <span>Create a Gemini API key in Google AI Studio</span>
+              <KeyRound class="h-4 w-4" />
+              <span>Create a FREE Gemini API Key</span>
             </a>
 
             <label class="mt-5 block space-y-2">
