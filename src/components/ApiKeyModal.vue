@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { KeyRound, Eye, EyeOff, Save, X } from 'lucide-vue-next';
 import { clearStoredGeminiApiKey, getStoredGeminiApiKey, setStoredGeminiApiKey } from '../lib/gemini-api-key';
 
@@ -16,14 +16,6 @@ const emit = defineEmits<{
 const apiKey = ref('');
 const showKey = ref(false);
 const isSaved = ref(false);
-
-const helperText = computed(() => {
-  if (props.currentKeyPresent) {
-    return 'A browser-stored key is active. You can replace it or clear it.';
-  }
-
-  return 'Add your own Gemini key to use Live lessons. It stays in this browser and is never sent to our server.';
-});
 
 watch(
   () => props.open,
@@ -81,15 +73,11 @@ function handleClear() {
               </button>
             </header>
 
-            <p class="mt-4 rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-sm leading-relaxed text-white/70">
-              {{ helperText }}
-            </p>
-
             <a
               href="https://aistudio.google.com/api-keys"
               target="_blank"
               rel="noopener noreferrer"
-              class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-orange-200/20 bg-orange-500/10 px-4 py-3 text-sm font-medium text-orange-50 transition hover:border-orange-200/35 hover:bg-orange-500/18"
+              class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-orange-200/20 bg-orange-500/10 px-4 py-3 text-sm font-medium text-orange-50 transition hover:border-orange-200/35 hover:bg-orange-500/18"
             >
               <KeyRound class="h-4 w-4" />
               <span>Create a FREE Gemini API Key</span>
@@ -97,28 +85,28 @@ function handleClear() {
 
             <label class="mt-5 block space-y-2">
               <span class="text-xs uppercase tracking-[0.24em] text-white/35">Gemini API Key</span>
-              <input
-                v-model="apiKey"
-                :type="showKey ? 'text' : 'password'"
-                class="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/20 focus:border-orange-400/40"
-                placeholder="Paste your key here"
-                autocomplete="off"
-                spellcheck="false"
-              />
+              <div class="relative">
+                <input
+                  v-model="apiKey"
+                  :type="showKey ? 'text' : 'password'"
+                  class="w-full rounded-2xl border border-white/10 bg-black/20 py-3 pl-4 pr-12 text-sm text-white outline-none transition placeholder:text-white/20 focus:border-orange-400/40"
+                  placeholder="Paste your key here"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <button
+                  type="button"
+                  class="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 text-white/60 transition hover:bg-white/10 hover:text-white"
+                  :aria-label="showKey ? 'Hide API key' : 'Show API key'"
+                  @click="showKey = !showKey"
+                >
+                  <Eye v-if="!showKey" class="h-4 w-4" />
+                  <EyeOff v-else class="h-4 w-4" />
+                </button>
+              </div>
             </label>
 
-            <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <button
-                type="button"
-                class="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm text-white/70 transition hover:bg-white/5 hover:text-white"
-                @click="showKey = !showKey"
-              >
-                <Eye v-if="!showKey" class="h-4 w-4" />
-                <EyeOff v-else class="h-4 w-4" />
-                <span>{{ showKey ? 'Hide' : 'Show' }}</span>
-              </button>
-
-              <div class="flex w-full items-center gap-2 sm:w-auto">
+            <div class="mt-4 flex w-full items-center gap-2">
                 <button
                   v-if="currentKeyPresent"
                   type="button"
@@ -136,7 +124,6 @@ function handleClear() {
                   <Save class="h-4 w-4" />
                   <span>Save</span>
                 </button>
-              </div>
             </div>
 
             <p v-if="isSaved" class="mt-4 text-sm text-emerald-300">
