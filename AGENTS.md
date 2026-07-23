@@ -1,5 +1,9 @@
 # Mislearn contributor guide
 
+## Communication
+
+Reply to the repository owner concisely, informatively, and directly. Focus on the essential outcome and avoid unnecessary detail.
+
 ## Commands
 
 - `npm run dev` starts Vite and the Express API.
